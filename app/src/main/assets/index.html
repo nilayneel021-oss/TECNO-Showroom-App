@@ -70,14 +70,8 @@ const paidOf=s=>s.paid+(s.pays||[]).reduce((a,p)=>a+p.amt,0);
 
 let view='dash',dd=today(),sf={kind:'phone',item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:3,acc:ACCS[3]};
 let q='',ex={from:today(),to:today()};
-const TABS=[['dash','Dashboard'],['sell','Sell'],['hist','Sales'],['phones','Mobiles'],['acc','Accessories'],['inst','Installments'],['accounts','Accounts'],['promos','Promos']];
-$('nav').innerHTML=TABS.map(t=>`<button data-v="${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
-function go(v){view=v;q='';ckR='';draw()}
-function draw(){
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  $('dt').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',year:'numeric'});
-  $('app').innerHTML=V[view]();
-}
+const TABS=[['dash','Dashboard'],['sell','Sell'],['hist','Sales'],['phones','Mobiles'],['acc','Accessories'],['inst','Installments'],['accounts','Accounts'],['promos','Promos'],['users','Users']];
+function go(v){if(!tabOk(v))return;view=v;q='';ckR='';draw()}
 const empty=t=>`<div class="empty">${t}</div>`;
 
 const V={};
@@ -88,15 +82,15 @@ V.dash=()=>{
   const stock=db.phones.filter(p=>p.status==='in').length;
   const low=db.acc.filter(a=>a.qty<=3);
   const due=db.sales.filter(s=>s.pay==='inst'&&!s.returned).reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0);
-  return `<div class="card hero"><div class="k">${dd===today()?'Today':esc(dd)} · Sales</div><div class="v" style="font-size:32px">${M(tot)}</div><div style="opacity:.9">${S.length} sale(s) · collected ${M(col)}</div></div>
+  return `${can('accounts')?`<div class="card hero"><div class="k">${dd===today()?'Today':esc(dd)} · Sales</div><div class="v" style="font-size:32px">${M(tot)}</div><div style="opacity:.9">${S.length} sale(s) · collected ${M(col)}</div></div>`:''}
   ${ckCard()}
   <div class="grid" style="margin-bottom:12px">
-   ${ACCS.map(a=>`<div class="card"><div class="k">${a}</div><div class="v ${bal(a)<0?'bad':''}">${M(bal(a))}</div></div>`).join('')}
+   ${can('accounts')?ACCS.map(a=>`<div class="card"><div class="k">${a}</div><div class="v ${bal(a)<0?'bad':''}">${M(bal(a))}</div></div>`).join(''):''}
    <div class="card"><div class="k">Phones in stock</div><div class="v">${stock}</div></div>
-   <div class="card"><div class="k">Installment due</div><div class="v warn">${M(due)}</div></div></div>
+   ${can('accounts')?`<div class="card"><div class="k">Installment due</div><div class="v warn">${M(due)}</div></div>`:''}</div>
   <div class="card"><div class="bar"><label>Check sales of date<input type="date" value="${dd}" onchange="dd=this.value||today();draw()"></label></div>
   <h2>Products sold</h2>
-  ${S.length?S.slice().reverse().map(s=>`<div class="row"><div><b>${esc(s.name)}${s.qty>1?' ×'+s.qty:''}</b><small>${s.imei?'IMEI '+esc(s.imei)+' · ':''}${esc(s.cust||'Walk-in')}${s.phone?' · '+esc(s.phone):''}</small></div><div class="r"><b>${M(s.total)}</b>${s.pay==='inst'?'<span class="tag">Installment</span>':''}</div></div>`).join(''):empty('No sales on this date')}</div>
+  ${S.length?S.slice().reverse().map(s=>`<div class="row"><div><b>${esc(s.name)}${s.qty>1?' ×'+s.qty:''}</b><small>${s.imei?'IMEI '+esc(s.imei)+' · ':''}${esc(s.cust||'Walk-in')}${s.phone?' · '+esc(s.phone):''}</small></div><div class="r"><b>${can('accounts')?M(s.total):''}</b>${s.pay==='inst'?'<span class="tag">Installment</span>':''}</div></div>`).join(''):empty('No sales on this date')}</div>
   ${low.length?`<div class="card"><h2>⚠️ Low accessories stock</h2>${low.map(a=>`<div class="row"><b>${esc(a.name)}</b><span class="tag bad">${a.qty} left</span></div>`).join('')}</div>`:''}`;
 };
 
@@ -116,7 +110,7 @@ V.sell=()=>{
   <label>IMEI<select onchange="pick(this.value)"><option value="">— select —</option>${opts(imeis,sf.item)}</select></label>`
   :`<label class="full">Product<select onchange="pick(this.value)"><option value="">— select —</option>${opts(ac.map(a=>[a.id,a.name+' ('+a.qty+' in stock)']),sf.item)}</select></label>
   <label>Quantity<input type="number" min="1" value="${sf.qty}" onchange="sset('qty',this.value);draw()"></label>`}
-  <label>Unit price (৳)<input type="number" min="0" value="${sf.price}" onchange="sset('price',this.value);draw()"></label>
+  <label>Unit price (৳)<input type="number" min="0" value="${sf.price}"${can('price')?'':' disabled'} onchange="sset('price',this.value);draw()"></label>
   <label>Promo offer<select onchange="sset('promo',this.value);draw()"><option value="">None</option>${opts(db.promos.filter(p=>p.on).map(p=>[p.id,p.name+' ('+(p.type==='pct'?p.val+'%':M(p.val))+')']),sf.promo)}</select></label>
   <label>Customer name<input value="${esc(sf.cust)}" onchange="sset('cust',this.value)"></label>
   <label>Customer number<input type="tel" value="${esc(sf.phone)}" onchange="sset('phone',this.value)"></label>
@@ -136,13 +130,13 @@ function calc(){
   const down=sf.pay==='inst'?Math.min(total,Math.max(0,+sf.down||0)):total;
   return{qty,gross,disc,total,down,months,monthly:Math.ceil((total-down)/months)};
 }
-function sell(){
+function sell(){if(!can('sell'))return toast('Not allowed');
   const g=calc(),it=findItem(sf.item);
   if(!it)return toast('Select a product');
   if(!(+sf.price>0))return toast('Enter a price');
   if(sf.kind==='acc'&&g.qty>it.qty)return toast('Only '+it.qty+' in stock');
   if(sf.pay==='inst'&&(!sf.cust.trim()||!sf.phone.trim()))return toast('Customer name & number required');
-  const s={id:uid(),date:today(),kind:sf.kind,name:sf.kind==='phone'?it.brand+' '+it.model:it.name,imei:it.imei||'',qty:g.qty,price:+sf.price,disc:g.disc,total:g.total,cust:sf.cust.trim(),phone:sf.phone.trim(),pay:sf.pay,paid:g.down,acc:sf.acc,months:g.months,monthly:g.monthly,pays:[]};
+  const s={id:uid(),date:today(),kind:sf.kind,name:sf.kind==='phone'?it.brand+' '+it.model:it.name,imei:it.imei||'',qty:g.qty,price:+sf.price,disc:g.disc,total:g.total,cust:sf.cust.trim(),phone:sf.phone.trim(),pay:sf.pay,paid:g.down,acc:sf.acc,months:g.months,monthly:g.monthly,pays:[],by:cur?cur.name:''};
   db.sales.push(s);
   if(sf.kind==='phone'){it.status='sold';it.saleId=s.id}else it.qty-=g.qty;
   txn(sf.acc,'in',g.down,'Sale: '+s.name+(s.imei?' / '+s.imei:''),'sale');
@@ -186,12 +180,77 @@ function checkImei(v){
   const e=$('ckr');if(e)e.innerHTML=ckR;
 }
 
+db.users=db.users||[];
+const PERMS=[['sell','Sell products'],['price','Change selling price'],['stockin','Add stock (purchase)'],['cost','See purchase prices'],['del','Delete stock items'],['hist','Sales history, edit & return'],['inst','Installments'],['accounts','Accounts, balances & totals'],['promos','Manage promos']];
+let cur=null,authS={mode:'',tries:0,until:0,rc:''},recShow='',idle=Date.now();
+const can=p=>!!cur&&(cur.role==='admin'||!!(cur.perms&&cur.perms[p]));
+const tabOk=v=>({sell:()=>can('sell'),hist:()=>can('hist'),inst:()=>can('inst'),accounts:()=>can('accounts'),promos:()=>can('promos'),users:()=>cur&&cur.role==='admin'}[v]||(()=>true))();
+const rnd=()=>Math.random().toString(36).slice(2,10);
+function hp(pin,salt){let s=salt+':'+pin,h1=0xdeadbeef,h2=0x41c6ce57;for(let r=0;r<3000;r++){for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909)}return(4294967296*(2097151&h2)+(h1>>>0)).toString(36)}
+const okPin=p=>/^\d{4,8}$/.test(p);
+const mkUser=(name,pin,role,perms)=>{const salt=rnd();return{id:uid(),name,salt,h:hp(pin,salt),role,perms:perms||{}}};
+function newRecCode(){const rc=String(Math.floor(1e7+Math.random()*9e7)),salt=rnd();db.rec={salt,h:hp(rc,salt)};save();return rc}
+['click','touchstart','keydown'].forEach(e=>addEventListener(e,()=>{idle=Date.now()},true));
+setInterval(()=>{if(cur&&Date.now()-idle>10*60000){lock();toast('Locked after 10 min idle')}},30000);
+function lock(){cur=null;authS.mode='';draw()}
+function authView(){
+  const box=b=>`<div class="card" style="max-width:420px;margin:30px auto"><h2>🔐 ${b}`;
+  if(authS.mode==='showrec')return box('Save your recovery code')+`</h2><div class="v" style="text-align:center;letter-spacing:4px;margin:10px 0">${authS.rc}</div><small>Write this code down and keep it safe. It is the only way to reset the admin PIN if you forget it. It is shown only once.</small><div style="margin-top:12px"><button class="btn" onclick="authS.mode='';authS.rc='';draw()">I saved it</button></div></div>`;
+  if(!db.users.length)return box('Create admin account')+`</h2><div class="f" style="grid-template-columns:1fr"><label>Owner name<input id="an1" value="Admin"></label><label>PIN (4–8 digits)<input id="ap1" type="password" inputmode="numeric" maxlength="8"></label><label>Confirm PIN<input id="ap2" type="password" inputmode="numeric" maxlength="8"></label></div><div style="margin-top:12px"><button class="btn" onclick="setupAdmin()">Create admin</button></div></div>`;
+  if(authS.mode==='rec')return box('Reset admin PIN')+`</h2><div class="f" style="grid-template-columns:1fr"><label>Recovery code<input id="rc1" inputmode="numeric"></label><label>New PIN (4–8 digits)<input id="rp1" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="recoverPin()">Reset PIN</button><button class="btn o" onclick="authS.mode='';draw()">Back</button></div></div>`;
+  return box('Login')+`</h2><div class="f" style="grid-template-columns:1fr"><label>User<select id="lu">${opts(db.users.map(u=>[u.id,u.name+(u.role==='admin'?' (admin)':'')]),'')}</select></label><label>PIN<input id="lp" type="password" inputmode="numeric" maxlength="8" onkeydown="if(event.key==='Enter')doLogin()"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="doLogin()">Login</button><button class="btn o" onclick="authS.mode='rec';draw()">Forgot admin PIN?</button></div></div>`;
+}
+function setupAdmin(){
+  const n=val('an1').trim(),p=val('ap1');
+  if(!n)return toast('Enter a name');if(!okPin(p))return toast('PIN must be 4–8 digits');if(p!==val('ap2'))return toast('PINs do not match');
+  db.users.push(mkUser(n,p,'admin'));authS.rc=newRecCode();authS.mode='showrec';save();draw();
+}
+function doLogin(){
+  if(Date.now()<authS.until)return toast('Too many tries. Wait '+Math.ceil((authS.until-Date.now())/1000)+'s');
+  const u=db.users.find(x=>x.id===val('lu'));
+  if(u&&hp(val('lp'),u.salt)===u.h){cur=u;view='dash';authS.tries=0;idle=Date.now();draw()}
+  else{if(++authS.tries>=5){authS.until=Date.now()+30000;authS.tries=0}toast('Wrong PIN');const e=$('lp');if(e)e.value=''}
+}
+function recoverPin(){
+  const a=db.users.find(u=>u.role==='admin'),p=val('rp1');
+  if(Date.now()<authS.until)return toast('Too many tries. Wait a bit');
+  if(!db.rec||hp(val('rc1').trim(),db.rec.salt)!==db.rec.h){if(++authS.tries>=5){authS.until=Date.now()+30000;authS.tries=0}return toast('Wrong recovery code')}
+  if(!okPin(p))return toast('PIN must be 4–8 digits');
+  a.salt=rnd();a.h=hp(p,a.salt);save();authS.mode='';toast('PIN reset. Login now');draw();
+}
+V.users=()=>`${recShow?`<div class="card" style="border-color:var(--pr)"><h2>New recovery code</h2><div class="v" style="letter-spacing:4px">${recShow}</div><small>Write it down. Old code no longer works.</small><div style="margin-top:10px"><button class="btn o s" onclick="recShow='';draw()">Hide</button></div></div>`:''}
+  <div class="card"><h2>Add staff</h2><div class="f"><label>Name<input id="un"></label><label>PIN (4–8 digits)<input id="up" type="password" inputmode="numeric" maxlength="8"></label></div><div style="margin-top:10px"><button class="btn" onclick="addUser()">Add staff</button></div></div>
+  ${db.users.map(u=>u.role==='admin'?`<div class="card"><div class="row" style="border:0;padding:0"><b>${esc(u.name)}</b><span class="tag ok">Admin · full access</span></div></div>`
+  :`<div class="card"><div class="row" style="border:0;padding:0 0 8px"><b>${esc(u.name)}</b><span class="tag">Staff</span></div>
+  <small>Always allowed: check IMEI, view stock, view dashboard sold items.</small>
+  <div style="display:grid;gap:8px;margin:10px 0">${PERMS.map(p=>`<label style="display:flex;gap:8px;align-items:center;font-weight:500;color:var(--tx);font-size:14px"><input type="checkbox" style="width:auto" ${u.perms[p[0]]?'checked':''} onchange="setPerm('${u.id}','${p[0]}',this.checked)">${p[1]}</label>`).join('')}</div>
+  <div class="bar" style="margin:0"><label>New PIN<input id="rp${u.id}" type="password" inputmode="numeric" maxlength="8"></label><button class="btn o s" onclick="resetPin('${u.id}')">Reset PIN</button><button class="btn g s" onclick="delUser('${u.id}')">Delete</button></div></div>`).join('')}
+  <div class="card"><h2>My security</h2><div class="f"><label>New admin PIN<input id="mp" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="myPin()">Change my PIN</button><button class="btn o" onclick="recShow=newRecCode();draw()">New recovery code</button></div></div>`;
+function addUser(){
+  if(!can('users')&&!(cur&&cur.role==='admin'))return;
+  const n=val('un').trim(),p=val('up');
+  if(!n)return toast('Enter a name');if(!okPin(p))return toast('PIN must be 4–8 digits');
+  if(db.users.some(u=>u.name.toLowerCase()===n.toLowerCase()))return toast('Name already used');
+  db.users.push(mkUser(n,p,'staff',{sell:true}));save();toast('Staff added ✓');draw();
+}
+function setPerm(id,k,v){if(cur.role!=='admin')return;db.users.find(u=>u.id===id).perms[k]=v;save()}
+function resetPin(id){const p=val('rp'+id);if(cur.role!=='admin')return;if(!okPin(p))return toast('PIN must be 4–8 digits');const u=db.users.find(x=>x.id===id);u.salt=rnd();u.h=hp(p,u.salt);save();toast('PIN changed ✓');draw()}
+function delUser(id){if(cur.role!=='admin'||!confirm('Delete this staff account?'))return;db.users=db.users.filter(u=>u.id!==id);save();draw()}
+function myPin(){const p=val('mp');if(!okPin(p))return toast('PIN must be 4–8 digits');cur.salt=rnd();cur.h=hp(p,cur.salt);save();toast('PIN changed ✓');draw()}
+function dateTxt(){$('dt').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',year:'numeric'})}
+function draw(){
+  if(!cur){$('nav').innerHTML='';dateTxt();$('app').innerHTML=authView();return}
+  if(!tabOk(view))view='dash';
+  $('nav').innerHTML=TABS.filter(t=>tabOk(t[0])).map(t=>`<button data-v="${t[0]}" class="${t[0]===view?'on':''}" onclick="go('${t[0]}')">${t[1]}</button>`).join('')+`<button onclick="lock()">🔒 ${esc(cur.name)}</button>`;
+  dateTxt();$('app').innerHTML=V[view]();
+}
+
 let hd=today(),act=null;
 V.hist=()=>{
   const L=db.sales.filter(s=>!hd||s.date===hd).slice().reverse();
   const s=act&&db.sales.find(x=>x.id===act.id);
   return `${s?panel(s):''}<div class="card"><div class="bar"><label>Date<input type="date" value="${hd}" onchange="hd=this.value;draw()"></label><button class="btn o s" onclick="hd='';draw()">All dates</button></div>
-  ${L.length?L.map(s=>`<div class="row"><div><b>${esc(s.name)}${s.qty>1?' ×'+s.qty:''}</b><small>${s.date} · ${s.imei?'IMEI '+esc(s.imei)+' · ':''}${esc(s.cust||'Walk-in')}</small></div><div class="r"><b>${M(s.total)}</b>${s.returned?'<span class="tag bad">Returned</span>':`<div><button class="btn o s" onclick="act={t:'edit',id:'${s.id}'};draw();scrollTo(0,0)">Edit</button> <button class="btn g s" onclick="act={t:'ret',id:'${s.id}'};draw();scrollTo(0,0)">Return</button></div>`}</div></div>`).join(''):empty('No sales found')}</div>`;
+  ${L.length?L.map(s=>`<div class="row"><div><b>${esc(s.name)}${s.qty>1?' ×'+s.qty:''}</b><small>${s.date}${s.by?' · '+esc(s.by):''} · ${s.imei?'IMEI '+esc(s.imei)+' · ':''}${esc(s.cust||'Walk-in')}</small></div><div class="r"><b>${M(s.total)}</b>${s.returned?'<span class="tag bad">Returned</span>':`<div><button class="btn o s" onclick="act={t:'edit',id:'${s.id}'};draw();scrollTo(0,0)">Edit</button> <button class="btn g s" onclick="act={t:'ret',id:'${s.id}'};draw();scrollTo(0,0)">Return</button></div>`}</div></div>`).join(''):empty('No sales found')}</div>`;
 };
 function panel(s){
   const x=act.t==='edit'
@@ -199,7 +258,7 @@ function panel(s){
   :`<h2>Return · ${esc(s.name)}${s.imei?' · '+esc(s.imei):''}</h2><small>Item goes back to stock. Received so far: ${M(paidOf(s))}</small><div class="f" style="margin-top:8px"><label>Refund amount (৳)<input id="ra" type="number" min="0" value="${paidOf(s)}"></label><label>Refund from<select id="rb">${accOpts(s.acc)}</select></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="doReturn('${s.id}')">Confirm return</button><button class="btn o" onclick="act=null;draw()">Cancel</button></div>`;
   return `<div class="card" style="border-color:var(--pr)">${x}</div>`;
 }
-function saveEdit(id){
+function saveEdit(id){if(!can('hist'))return toast('Not allowed');
   const s=db.sales.find(x=>x.id===id),price=+val('ev'),disc=+val('ed')||0;
   if(!(price>0))return toast('Enter a price');
   const total=Math.max(0,price*s.qty-disc);
@@ -208,7 +267,7 @@ function saveEdit(id){
   Object.assign(s,{price,disc,total,cust:val('ec').trim(),phone:val('ep').trim(),date:val('ee')||s.date});
   save();act=null;toast('Sale updated ✓');draw();
 }
-function doReturn(id){
+function doReturn(id){if(!can('hist'))return toast('Not allowed');
   const s=db.sales.find(x=>x.id===id),amt=+val('ra')||0;
   if(amt<0||amt>paidOf(s))return toast('Refund can’t exceed '+Math.round(paidOf(s)));
   if(s.kind==='phone'){const p=db.phones.find(x=>x.imei===s.imei);if(p){p.status='in';delete p.saleId}}
@@ -218,13 +277,13 @@ function doReturn(id){
   save();act=null;toast('Return done ✓');draw();
 }
 
-V.phones=()=>`<div class="card"><h2>Purchase mobiles (many IMEI at once)</h2><div class="f">
+V.phones=()=>`${can('stockin')?`<div class="card"><h2>Purchase mobiles (many IMEI at once)</h2><div class="f">
   <label>Brand<input id="pb" placeholder="Tecno"></label><label>Model<input id="pm" placeholder="Go 3"></label>
   <label>Quantity (auto-add)<input id="pq" type="number" min="1" placeholder="10" oninput="imeiChk()"></label>
   <label>Purchase price each (৳)<input id="pc" type="number" min="0"></label><label>Selling price (৳)<input id="ps" type="number" min="0"></label>
   <label>Supplier<input id="pu"></label><label>Paid from<select id="pa"><option value="">Don’t record</option>${accOpts('')}</select></label>
   <label class="full">IMEI list — one per line (paste or type)<textarea id="pi" rows="6" oninput="imeiChk()" placeholder="123456789012345"></textarea></label></div>
-  <div class="row"><small id="ichk">0 IMEI</small><div style="display:flex;gap:6px">${scanBtn('stock')}<button class="btn" onclick="addPhones()">Add to stock</button></div></div></div>
+  <div class="row"><small id="ichk">0 IMEI</small><div style="display:flex;gap:6px">${scanBtn('stock')}<button class="btn" onclick="addPhones()">Add to stock</button></div></div></div>`:''}
   <div class="card"><div class="bar"><label>Search model / IMEI<input id="qs" value="${esc(q)}" oninput="q=this.value;list()"></label>${scanBtn('search')}</div><div id="pl">${shelves()}</div></div>`;
 function parseI(){const t=val('pi').split(/[\s,;]+/).filter(Boolean),ok=t.filter(x=>/^\d{15}$/.test(x)),u=[...new Set(ok)];
   return{n:t.length,ok:u,bad:t.length-ok.length,dup:ok.length-u.length,ex:u.filter(i=>db.phones.some(p=>p.imei===i))}}
@@ -233,7 +292,7 @@ function imeiChk(){
   e.innerHTML=`<b class="${r.bad||r.dup||r.ex.length?'bad':'ok'}">${r.ok.length} valid IMEI</b>${r.bad?` · ${r.bad} invalid`:''}${r.dup?` · ${r.dup} repeated`:''}${r.ex.length?` · ${r.ex.length} already in stock`:''}`;
   const qn=+val('pq');if(qn&&r.ok.length===qn&&!r.bad&&!r.dup&&!r.ex.length&&val('pb').trim()&&val('pm').trim())addPhones();
 }
-function addPhones(){
+function addPhones(){if(!can('stockin'))return toast('Not allowed');
   const brand=val('pb').trim(),model=val('pm').trim(),r=parseI();
   if(!brand||!model)return toast('Enter brand and model');
   if(!r.ok.length)return toast('Enter IMEI numbers');
@@ -248,18 +307,18 @@ function shelves(){
   const S=models().map(m=>({m,L:m.list.filter(p=>!ql||(m.name+p.imei).toLowerCase().includes(ql))})).filter(x=>x.L.length);
   return S.length?S.map(({m,L})=>{const n=m.list.filter(p=>p.status==='in').length,pr=m.list[m.list.length-1].price;
     return `<details class="shelf"${ql?' open':''}><summary><div><b>${esc(m.name)}</b><small>${m.list.length-n} sold · price ${M(pr)}</small></div><span class="tag ${n?'ok':'bad'}">${n} in stock</span></summary>
-    ${L.slice().reverse().map(p=>`<div class="row"><div><b style="font-weight:600">${esc(p.imei)}</b><small>cost ${M(p.cost)}${p.supplier?' · '+esc(p.supplier):''} · ${p.date}</small></div><div class="r"><span class="tag ${p.status==='in'?'ok':''}">${p.status==='in'?'In stock':'Sold'}</span>${p.status==='in'?` <button class="btn g s" onclick="delPhone('${p.id}')">✕</button>`:''}</div></div>`).join('')}</details>`}).join(''):empty('No phones yet');
+    ${L.slice().reverse().map(p=>`<div class="row"><div><b style="font-weight:600">${esc(p.imei)}</b><small>${can('cost')?'cost '+M(p.cost)+(p.supplier?' · '+esc(p.supplier):'')+' · ':''}${p.date}</small></div><div class="r"><span class="tag ${p.status==='in'?'ok':''}">${p.status==='in'?'In stock':'Sold'}</span>${p.status==='in'&&can('del')?` <button class="btn g s" onclick="delPhone('${p.id}')">✕</button>`:''}</div></div>`).join('')}</details>`}).join(''):empty('No phones yet');
 }
 function list(){$('pl').innerHTML=shelves()}
-function delPhone(id){if(!confirm('Remove this phone from stock?'))return;db.phones=db.phones.filter(p=>p.id!==id);save();draw()}
+function delPhone(id){if(!can('del'))return toast('Not allowed');if(!confirm('Remove this phone from stock?'))return;db.phones=db.phones.filter(p=>p.id!==id);save();draw()}
 
-V.acc=()=>`<div class="card"><h2>Add / restock accessory</h2><div class="f">
+V.acc=()=>`${can('stockin')?`<div class="card"><h2>Add / restock accessory</h2><div class="f">
   <label>Name<input id="an" placeholder="Type-C cable"></label><label>Quantity<input id="aq" type="number" min="1"></label>
   <label>Cost each (৳)<input id="ac" type="number" min="0"></label><label>Selling price (৳)<input id="ap" type="number" min="0"></label>
   <label>Paid from<select id="aa"><option value="">Don’t record</option>${accOpts('')}</select></label></div>
-  <div style="margin-top:10px"><button class="btn" onclick="addAcc()">Save to stock</button></div></div>
-  <div class="card"><h2>Accessories stock</h2>${db.acc.length?db.acc.map(a=>`<div class="row"><div><b>${esc(a.name)}</b><small>cost ${M(a.cost)} · price ${M(a.price)}</small></div><div class="r"><span class="tag ${a.qty<=3?'bad':'ok'}">${a.qty} pcs</span> <button class="btn g s" onclick="delAcc('${a.id}')">✕</button></div></div>`).join(''):empty('No accessories yet')}</div>`;
-function addAcc(){
+  <div style="margin-top:10px"><button class="btn" onclick="addAcc()">Save to stock</button></div></div>`:''}
+  <div class="card"><h2>Accessories stock</h2>${db.acc.length?db.acc.map(a=>`<div class="row"><div><b>${esc(a.name)}</b><small>${can('cost')?'cost '+M(a.cost)+' · ':''}price ${M(a.price)}</small></div><div class="r"><span class="tag ${a.qty<=3?'bad':'ok'}">${a.qty} pcs</span> ${can('del')?`<button class="btn g s" onclick="delAcc('${a.id}')">✕</button>`:''}</div></div>`).join(''):empty('No accessories yet')}</div>`;
+function addAcc(){if(!can('stockin'))return toast('Not allowed');
   const name=val('an').trim(),qty=+val('aq'),cost=+val('ac')||0,price=+val('ap')||0,a=val('aa');
   if(!name||!(qty>0))return toast('Enter name and quantity');
   let it=db.acc.find(x=>x.name.toLowerCase()===name.toLowerCase());
@@ -267,7 +326,7 @@ function addAcc(){
   if(a)txn(a,'out',cost*qty,'Stock: '+name+' ×'+qty,'purchase');
   save();toast('Stock updated ✓');draw();
 }
-function delAcc(id){if(!confirm('Delete this item?'))return;db.acc=db.acc.filter(a=>a.id!==id);save();draw()}
+function delAcc(id){if(!can('del'))return toast('Not allowed');if(!confirm('Delete this item?'))return;db.acc=db.acc.filter(a=>a.id!==id);save();draw()}
 
 V.promos=()=>`<div class="card"><h2>New promo offer</h2><div class="f">
   <label>Offer name<input id="rn" placeholder="Eid offer"></label>
@@ -275,9 +334,9 @@ V.promos=()=>`<div class="card"><h2>New promo offer</h2><div class="f">
   <label>Value<input id="rv" type="number" min="0"></label></div>
   <div style="margin-top:10px"><button class="btn" onclick="addPromo()">Create offer</button></div></div>
   <div class="card"><h2>Offers</h2>${db.promos.length?db.promos.map(p=>`<div class="row"><div><b>${esc(p.name)}</b><small>${p.type==='pct'?p.val+'% off':M(p.val)+' off'}</small></div><div class="r"><button class="btn o s" onclick="togPromo('${p.id}')">${p.on?'Active':'Paused'}</button> <button class="btn g s" onclick="delPromo('${p.id}')">✕</button></div></div>`).join(''):empty('No offers yet')}</div>`;
-function addPromo(){const name=val('rn').trim(),v=+val('rv');if(!name||!(v>0))return toast('Enter name and value');db.promos.push({id:uid(),name,type:val('rt'),val:v,on:true});save();draw()}
-function togPromo(id){const p=db.promos.find(x=>x.id===id);p.on=!p.on;save();draw()}
-function delPromo(id){db.promos=db.promos.filter(p=>p.id!==id);save();draw()}
+function addPromo(){if(!can('promos'))return toast('Not allowed');const name=val('rn').trim(),v=+val('rv');if(!name||!(v>0))return toast('Enter name and value');db.promos.push({id:uid(),name,type:val('rt'),val:v,on:true});save();draw()}
+function togPromo(id){if(!can('promos'))return toast('Not allowed');const p=db.promos.find(x=>x.id===id);p.on=!p.on;save();draw()}
+function delPromo(id){if(!can('promos'))return toast('Not allowed');db.promos=db.promos.filter(p=>p.id!==id);save();draw()}
 
 V.inst=()=>{
   const L=db.sales.filter(s=>s.pay==='inst'&&!s.returned).slice().reverse();
@@ -288,7 +347,7 @@ V.inst=()=>{
   <div class="bar" style="margin:8px 0 0"><label>Amount<input id="ia${s.id}" type="number" min="1" value="${Math.min(s.monthly,due)}"></label><label>Into<select id="ib${s.id}">${accOpts(s.acc)}</select></label><button class="btn s" onclick="payInst('${s.id}')">Receive</button></div>`:''}</div>`};
   return open.length||done.length?`<h2>Open (${open.length})</h2>${open.length?open.map(card).join(''):empty('None')}${done.length?`<h2>Completed</h2>${done.map(card).join('')}`:''}`:`<div class="card">${empty('No installment sales yet')}</div>`;
 };
-function payInst(id){
+function payInst(id){if(!can('inst'))return toast('Not allowed');
   const s=db.sales.find(x=>x.id===id),a=+val('ia'+id),acc=val('ib'+id),due=s.total-paidOf(s);
   if(!(a>0)||a>due)return toast('Amount must be 1–'+Math.round(due));
   s.pays.push({date:today(),amt:a,acc});txn(acc,'in',a,'Installment: '+s.cust+' / '+s.name,'inst');save();toast('Payment received ✓');draw();
@@ -304,12 +363,12 @@ V.accounts=()=>{
   <div class="card"><h2>Export to Excel</h2><div class="bar"><label>From<input type="date" value="${ex.from}" onchange="ex.from=this.value"></label><label>To<input type="date" value="${ex.to}" onchange="ex.to=this.value"></label><button class="btn" onclick="exportX()">⬇ Export .xlsx</button></div></div>
   <div class="card"><h2>Recent transactions</h2>${T.length?T.map(t=>`<div class="row"><div><b>${esc(t.note)}</b><small>${t.date} ${t.time||''} · ${esc(t.acc)}</small></div><b class="${t.type==='in'?'ok':'bad'}">${t.type==='in'?'+':'−'}${M(t.amt)}</b></div>`).join(''):empty('No transactions yet')}</div>`;
 };
-function addTxn(){const a=+val('tm');if(!(a>0))return toast('Enter an amount');txn(val('ta'),val('tt'),a,val('tn').trim()||'Manual entry','manual');save();toast('Saved ✓');draw()}
-async function exportX(){
+function addTxn(){if(!can('accounts'))return toast('Not allowed');const a=+val('tm');if(!(a>0))return toast('Enter an amount');txn(val('ta'),val('tt'),a,val('tn').trim()||'Manual entry','manual');save();toast('Saved ✓');draw()}
+async function exportX(){if(!can('accounts'))return toast('Not allowed');
   const f=ex.from||'0000-00-00',t=ex.to||'9999-99-99',ok=d=>d>=f&&d<=t;
   if(typeof XLSX==='undefined')return toast('Excel library not loaded');
   const tx=db.txns.filter(x=>ok(x.date)).map(x=>({Date:x.date,Time:x.time||'',Account:x.acc,Type:x.type==='in'?'In':'Out',Amount:x.amt,Note:x.note}));
-  const sl=db.sales.filter(x=>ok(x.date)).map(s=>({Date:s.date,Product:s.name,IMEI:s.imei,Qty:s.qty,Price:s.price,Discount:s.disc,Total:s.total,Customer:s.cust,Phone:s.phone,Payment:s.pay==='inst'?'Installment':'Full',Paid:paidOf(s),Due:s.total-paidOf(s)}));
+  const sl=db.sales.filter(x=>ok(x.date)).map(s=>({Date:s.date,Product:s.name,IMEI:s.imei,Qty:s.qty,Price:s.price,Discount:s.disc,Total:s.total,Customer:s.cust,By:s.by||'',Phone:s.phone,Payment:s.pay==='inst'?'Installment':'Full',Paid:paidOf(s),Due:s.total-paidOf(s)}));
   const sm=ACCS.map(a=>{const r=db.txns.filter(x=>x.acc===a&&ok(x.date));const i=r.filter(x=>x.type==='in').reduce((s,x)=>s+x.amt,0),o=r.filter(x=>x.type==='out').reduce((s,x)=>s+x.amt,0);return{Account:a,In:i,Out:o,Net:i-o,'Balance now':bal(a)}});
   const wb=XLSX.utils.book_new();wb.Props={Title:'TECNO Official Showroom by TECH Hub'};
   [['Summary',sm],['Transactions',tx],['Sales',sl],['Mobile stock',db.phones.map(p=>({Model:p.brand+' '+p.model,IMEI:p.imei,Cost:p.cost,Price:p.price,Supplier:p.supplier,Added:p.date,Status:p.status==='in'?'In stock':'Sold'}))]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n));
