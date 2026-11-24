@@ -19,7 +19,13 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Prepare signing key
+        env:
+          KS_B64: ${{ secrets.KS_B64 }}
+        run: echo "$KS_B64" | base64 -d > app/release.keystore
       - name: Build debug APK
+        env:
+          KS_PASS: ${{ secrets.KS_PASS }}
         run: gradle assembleDebug
       - name: Upload APK
         uses: actions/upload-artifact@v4
