@@ -13,6 +13,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import android.util.Base64
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import java.io.File
 import java.io.FileOutputStream
 
@@ -33,7 +34,25 @@ class MainActivity : Activity() {
         webView.loadUrl("file:///android_asset/index.html")
     }
 
+    private fun js(fn: String, arg: String) {
+        webView.evaluateJavascript("$fn(" + org.json.JSONObject.quote(arg) + ")", null)
+    }
+
     inner class DownloadBridge {
+        @JavascriptInterface
+        fun scan() {
+            runOnUiThread {
+                try {
+                    GmsBarcodeScanning.getClient(this@MainActivity).startScan()
+                        .addOnSuccessListener { b -> js("onScan", b.rawValue ?: "") }
+                        .addOnCanceledListener { js("onScanEnd", "") }
+                        .addOnFailureListener { e -> js("onScanFail", e.message ?: "") }
+                } catch (e: Exception) {
+                    js("onScanFail", e.message ?: "")
+                }
+            }
+        }
+
         @JavascriptInterface
         fun saveExcel(filename: String, base64: String) {
             try {
