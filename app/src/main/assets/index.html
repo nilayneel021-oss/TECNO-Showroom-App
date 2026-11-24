@@ -43,7 +43,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offs
 .shelf{border-top:1px solid var(--bd);padding:8px 0}.shelf:first-child{border-top:0}summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none}summary::-webkit-details-marker{display:none}summary small{display:block;color:var(--mu)}textarea{resize:vertical;font-family:ui-monospace,monospace}
 </style></head>
 <body>
-<header><div class="top"><div><h1><svg width="36" height="36" viewBox="0 0 48 48" style="vertical-align:-10px;margin-right:6px"><rect width="48" height="48" rx="11" fill="#4F46E5"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#fff"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#4F46E5"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#4F46E5"/></svg>TECNO Official Showroom by TECH Hub</h1><small>Bazar Road, Beside The One Bank, Sadar Lakshmipur</small><br><small id="dt"></small></div></div><nav id="nav"></nav></header>
+<header><div class="top"><div><h1><svg width="36" height="36" viewBox="0 0 48 48" style="vertical-align:-10px;margin-right:6px"><rect width="48" height="48" rx="11" fill="#4F46E5"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#fff"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#4F46E5"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#4F46E5"/></svg><span id="shn">TECNO Official Showroom by TECH Hub</span></h1><small id="sha">Bazar Road, Beside The One Bank, Sadar Lakshmipur</small><br><small id="dt"></small></div></div><nav id="nav"></nav></header>
 <main id="app"></main><div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -51,6 +51,7 @@ const ACCS=['BRAC Bank','Tecno Virtual Account','PalmPay','Cash On Hand'];
 const K='mobshop_v1';
 let db={phones:[],acc:[],promos:[],sales:[],txns:[]};
 try{const s=localStorage.getItem(K);if(s)db=Object.assign(db,JSON.parse(s))}catch(e){}
+db.set=Object.assign({shop:'TECNO Official Showroom by TECH Hub',addr:'Bazar Road, Beside The One Bank, Sadar Lakshmipur',tel:'',low:3,lock:10,months:3,accs:[...ACCS]},db.set);db.del=db.del||[];db.notes=db.notes||[];ACCS.length=0;ACCS.push(...db.set.accs);
 const save=()=>{try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const pad=n=>String(n).padStart(2,'0');
@@ -68,9 +69,9 @@ function txn(acc,type,amt,note,cat){if(amt>0)db.txns.push({id:uid(),date:today()
 const bal=a=>db.txns.filter(t=>t.acc===a).reduce((s,t)=>s+(t.type==='in'?t.amt:-t.amt),0);
 const paidOf=s=>s.paid+(s.pays||[]).reduce((a,p)=>a+p.amt,0);
 
-let view='dash',dd=today(),sf={kind:'phone',item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:3,acc:ACCS[3]};
+let view='dash',dd=today(),sf={kind:'phone',item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:db.set.months,acc:ACCS[3]||ACCS[0]};
 let q='',ex={from:today(),to:today()};
-const TABS=[['dash','Dashboard'],['sell','Sell'],['hist','Sales'],['phones','Mobiles'],['acc','Accessories'],['inst','Installments'],['accounts','Accounts'],['promos','Promos'],['users','Users']];
+const TABS=[['dash','Dashboard'],['notes','Notifications'],['sell','Sell'],['hist','Sales'],['phones','Mobiles'],['acc','Accessories'],['inst','Installments'],['accounts','Accounts'],['promos','Promos'],['users','Users'],['settings','Settings']];
 function go(v){if(!tabOk(v))return;view=v;q='';ckR='';draw()}
 const empty=t=>`<div class="empty">${t}</div>`;
 
@@ -80,10 +81,10 @@ V.dash=()=>{
   const tot=S.reduce((a,s)=>a+s.total,0);
   const col=db.txns.filter(t=>t.date===dd&&t.type==='in'&&(t.cat==='sale'||t.cat==='inst')).reduce((a,t)=>a+t.amt,0);
   const stock=db.phones.filter(p=>p.status==='in').length;
-  const low=db.acc.filter(a=>a.qty<=3);
+  const low=db.acc.filter(a=>a.qty<=db.set.low);
   const due=db.sales.filter(s=>s.pay==='inst'&&!s.returned).reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0);
   return `${can('accounts')?`<div class="card hero"><div class="k">${dd===today()?'Today':esc(dd)} · Sales</div><div class="v" style="font-size:32px">${M(tot)}</div><div style="opacity:.9">${S.length} sale(s) · collected ${M(col)}</div></div>`:''}
-  ${ckCard()}
+  ${noteCard()}${ckCard()}
   <div class="grid" style="margin-bottom:12px">
    ${can('accounts')?ACCS.map(a=>`<div class="card"><div class="k">${a}</div><div class="v ${bal(a)<0?'bad':''}">${M(bal(a))}</div></div>`).join(''):''}
    <div class="card"><div class="k">Phones in stock</div><div class="v">${stock}</div></div>
@@ -140,7 +141,7 @@ function sell(){if(!can('sell'))return toast('Not allowed');
   db.sales.push(s);
   if(sf.kind==='phone'){it.status='sold';it.saleId=s.id}else it.qty-=g.qty;
   txn(sf.acc,'in',g.down,'Sale: '+s.name+(s.imei?' / '+s.imei:''),'sale');
-  save();sf={kind:sf.kind,model:sf.model,item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:3,acc:sf.acc};
+  saleNotes(s,it);save();sf={kind:sf.kind,model:sf.model,item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:db.set.months,acc:sf.acc};
   toast('Sale saved ✓');draw();
 }
 
@@ -181,17 +182,17 @@ function checkImei(v){
 }
 
 db.users=db.users||[];
-const PERMS=[['sell','Sell products'],['price','Change selling price'],['stockin','Add stock (purchase)'],['cost','See purchase prices'],['del','Delete stock items'],['hist','Sales history, edit & return'],['inst','Installments'],['accounts','Accounts, balances & totals'],['promos','Manage promos']];
+const PERMS=[['sell','Sell products'],['price','Change selling price'],['stockin','Add stock (purchase)'],['cost','See purchase prices'],['del','Delete stock items'],['hist','Sales history, edit & return'],['delsale','Delete a sale'],['export','Export sales & stock to Excel'],['inst','Installments'],['accounts','Accounts, balances & totals'],['promos','Manage promos']];
 let cur=null,authS={mode:'',tries:0,until:0,rc:''},recShow='',idle=Date.now();
 const can=p=>!!cur&&(cur.role==='admin'||!!(cur.perms&&cur.perms[p]));
-const tabOk=v=>({sell:()=>can('sell'),hist:()=>can('hist'),inst:()=>can('inst'),accounts:()=>can('accounts'),promos:()=>can('promos'),users:()=>cur&&cur.role==='admin'}[v]||(()=>true))();
+const tabOk=v=>({sell:()=>can('sell'),hist:()=>can('hist'),inst:()=>can('inst'),accounts:()=>can('accounts'),promos:()=>can('promos'),users:()=>cur&&cur.role==='admin',settings:()=>cur&&cur.role==='admin'}[v]||(()=>true))();
 const rnd=()=>Math.random().toString(36).slice(2,10);
 function hp(pin,salt){let s=salt+':'+pin,h1=0xdeadbeef,h2=0x41c6ce57;for(let r=0;r<3000;r++){for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909)}return(4294967296*(2097151&h2)+(h1>>>0)).toString(36)}
 const okPin=p=>/^\d{4,8}$/.test(p);
 const mkUser=(name,pin,role,perms)=>{const salt=rnd();return{id:uid(),name,salt,h:hp(pin,salt),role,perms:perms||{}}};
 function newRecCode(){const rc=String(Math.floor(1e7+Math.random()*9e7)),salt=rnd();db.rec={salt,h:hp(rc,salt)};save();return rc}
 ['click','touchstart','keydown'].forEach(e=>addEventListener(e,()=>{idle=Date.now()},true));
-setInterval(()=>{if(cur&&Date.now()-idle>10*60000){lock();toast('Locked after 10 min idle')}},30000);
+setInterval(()=>{if(cur&&Date.now()-idle>(db.set.lock||10)*60000){lock();toast('Locked (idle)')}},30000);
 function lock(){cur=null;authS.mode='';draw()}
 function authView(){
   const box=b=>`<div class="card" style="max-width:420px;margin:30px auto"><h2>🔐 ${b}`;
@@ -208,8 +209,8 @@ function setupAdmin(){
 function doLogin(){
   if(Date.now()<authS.until)return toast('Too many tries. Wait '+Math.ceil((authS.until-Date.now())/1000)+'s');
   const u=db.users.find(x=>x.id===val('lu'));
-  if(u&&hp(val('lp'),u.salt)===u.h){cur=u;view='dash';authS.tries=0;idle=Date.now();draw()}
-  else{if(++authS.tries>=5){authS.until=Date.now()+30000;authS.tries=0}toast('Wrong PIN');const e=$('lp');if(e)e.value=''}
+  if(u&&hp(val('lp'),u.salt)===u.h){cur=u;view='dash';authS.tries=0;idle=Date.now();if(u.role!=='admin')notify('login',u.name+' logged in','admin');checkDue();draw()}
+  else{if(++authS.tries>=5){authS.until=Date.now()+30000;authS.tries=0;notify('security','5 wrong PIN attempts for '+(u?u.name:'unknown user'),'admin');save()}toast('Wrong PIN');const e=$('lp');if(e)e.value=''}
 }
 function recoverPin(){
   const a=db.users.find(u=>u.role==='admin'),p=val('rp1');
@@ -238,11 +239,111 @@ function resetPin(id){const p=val('rp'+id);if(cur.role!=='admin')return;if(!okPi
 function delUser(id){if(cur.role!=='admin'||!confirm('Delete this staff account?'))return;db.users=db.users.filter(u=>u.id!==id);save();draw()}
 function myPin(){const p=val('mp');if(!okPin(p))return toast('PIN must be 4–8 digits');cur.salt=rnd();cur.h=hp(p,cur.salt);save();toast('PIN changed ✓');draw()}
 function dateTxt(){$('dt').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',year:'numeric'})}
+
+const sheet=(wb,n,d)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n);
+async function saveWb(wb,fn){
+  try{
+    if(window.Android&&typeof Android.saveExcel==='function'){Android.saveExcel(fn,XLSX.write(wb,{type:'base64',bookType:'xlsx'}));toast('Excel export started ✓')}
+    else if(window.claude&&claude.use){const dl=await claude.use('downloads');await dl.save({filename:fn,data:XLSX.write(wb,{type:'array',bookType:'xlsx'})});toast('Exported ✓')}
+    else{XLSX.writeFile(wb,fn);toast('Exported ✓')}
+  }catch(e){if(!e||e.code!=='declined')toast('Export failed')}
+}
+async function exportSales(){
+  if(!can('export'))return toast('Not allowed');if(typeof XLSX==='undefined')return toast('Excel library not loaded');
+  const f=ex.from||'0000-00-00',t=ex.to||'9999-99-99',ok=d=>d>=f&&d<=t,wb=XLSX.utils.book_new();
+  sheet(wb,'Sales',db.sales.filter(s=>ok(s.date)).map(s=>({Date:s.date,Product:s.name,IMEI:s.imei,Qty:s.qty,'Unit price':s.price,Discount:s.disc,Total:s.total,Customer:s.cust,Phone:s.phone,Payment:s.pay==='inst'?'Installment':'Full',Received:paidOf(s),Due:s.returned?0:s.total-paidOf(s),Status:s.returned?'Returned':'Sold','Sold by':s.by||'',Account:s.acc})));
+  sheet(wb,'Deleted sales',db.del.filter(s=>ok(s.date)).map(s=>({Date:s.date,Product:s.name,IMEI:s.imei,Total:s.total,Customer:s.cust,Phone:s.phone,'Sold by':s.by||'','Deleted on':s.delDate,'Deleted by':s.delBy})));
+  await saveWb(wb,`sales_${ex.from}_to_${ex.to}.xlsx`);
+}
+async function exportStock(){
+  if(!can('export'))return toast('Not allowed');if(typeof XLSX==='undefined')return toast('Excel library not loaded');
+  const wb=XLSX.utils.book_new(),c=can('cost');
+  sheet(wb,'By model',models().map(m=>{const n=m.list.filter(p=>p.status==='in').length;return{Model:m.name,'In stock':n,Sold:m.list.length-n,Total:m.list.length}}));
+  sheet(wb,'Mobiles',db.phones.map(p=>{const s=db.sales.filter(x=>x.imei===p.imei&&!x.returned).slice(-1)[0],r={Model:p.brand+' '+p.model,IMEI:p.imei,Price:p.price};if(c){r.Cost=p.cost;r.Supplier=p.supplier}r.Added=p.date;r.Status=p.status==='in'?'In stock':'Sold';r['Sold to']=p.status==='in'||!s?'':s.cust+(s.phone?' '+s.phone:'');r['Sold on']=p.status==='in'||!s?'':s.date;return r}));
+  sheet(wb,'Accessories',db.acc.map(a=>{const r={Name:a.name,Qty:a.qty,Price:a.price};if(c)r.Cost=a.cost;return r}));
+  await saveWb(wb,`stock_${today()}.xlsx`);
+}
+const exportCard=()=>can('export')?`<div class="card"><h2>Export sales to Excel</h2><div class="bar"><label>From<input type="date" value="${ex.from}" onchange="ex.from=this.value"></label><label>To<input type="date" value="${ex.to}" onchange="ex.to=this.value"></label><button class="btn" onclick="exportSales()">⬇ Sales .xlsx</button></div></div>`:'';
+const stockCard=()=>can('export')?`<div class="card"><h2>Export stock to Excel</h2><button class="btn" onclick="exportStock()">⬇ Stock .xlsx</button></div>`:'';
+
+function delPanel(s){return `<h2>Delete sale · ${esc(s.name)}${s.imei?' · '+esc(s.imei):''}</h2><small>${s.returned?'This sale was already returned, so only the record is removed.':'The item goes back to stock and the money received ('+M(paidOf(s))+') is taken back from the accounts.'} A copy is kept in the deleted-sales list of the Excel export.</small><div class="bar" style="margin:10px 0 0"><button class="btn" style="background:var(--bad);color:#fff" onclick="doDelete('${s.id}')">Yes, delete</button><button class="btn o" onclick="act=null;draw()">Cancel</button></div>`}
+function doDelete(id){
+  if(!can('delsale'))return toast('Not allowed');
+  const s=db.sales.find(x=>x.id===id);if(!s)return;
+  if(!s.returned){
+    if(s.kind==='phone'){const p=db.phones.find(x=>x.imei===s.imei);if(p){p.status='in';delete p.saleId}}
+    else{const a=db.acc.find(x=>x.name.toLowerCase()===s.name.toLowerCase());if(a)a.qty+=s.qty;else db.acc.push({id:uid(),name:s.name,qty:s.qty,cost:0,price:s.price})}
+    const n='Deleted sale: '+s.name+(s.imei?' / '+s.imei:'');
+    txn(s.acc,'out',s.paid,n,'refund');(s.pays||[]).forEach(p=>txn(p.acc,'out',p.amt,n,'refund'));
+  }
+  notify('delete',cur.name+' deleted sale: '+s.name+(s.imei?' ('+s.imei+')':'')+' '+M(s.total),'admin');db.sales=db.sales.filter(x=>x.id!==id);db.del.push(Object.assign({},s,{delBy:cur.name,delDate:today()}));
+  save();act=null;toast('Sale deleted');draw();
+}
+
+function applySet(){const e=$('shn');if(e)e.textContent=db.set.shop;const a=$('sha');if(a)a.textContent=db.set.addr+(db.set.tel?' · '+db.set.tel:'');document.title=db.set.shop}
+V.settings=()=>`<div class="card"><h2>Shop details</h2><div class="f"><label class="full">Shop name<input id="s1" value="${esc(db.set.shop)}"></label><label class="full">Address<input id="s2" value="${esc(db.set.addr)}"></label><label>Phone<input id="s3" type="tel" value="${esc(db.set.tel)}"></label></div></div>
+  <div class="card"><h2>Preferences</h2><div class="f"><label>Low-stock alert (pcs or less)<input id="s4" type="number" min="0" value="${db.set.low}"></label><label>Auto-lock after (minutes)<input id="s5" type="number" min="1" value="${db.set.lock}"></label><label>Default installment months<input id="s6" type="number" min="1" max="36" value="${db.set.months}"></label></div><div style="margin-top:10px"><button class="btn" onclick="saveSet()">Save settings</button></div></div>
+  <div class="card"><h2>Accounts</h2>${ACCS.map((a,i)=>`<div class="bar" style="margin:0 0 8px"><label>Account ${i+1}<input id="ra${i}" value="${esc(a)}"></label><button class="btn o s" onclick="renAcc(${i})">Rename</button><button class="btn g s" onclick="delAccount(${i})">✕</button></div>`).join('')}<div class="bar" style="margin:8px 0 0"><label>New account<input id="na" placeholder="e.g. bKash"></label><button class="btn s" onclick="addAccount()">Add</button></div><small>An account can be removed only if it has no records.</small></div>
+  <div class="card"><h2>Data on this device</h2><small>${db.phones.length} phones · ${db.sales.length} sales · ${db.txns.length} transactions · ${db.users.length} users. Data is stored on this device only, so export regularly from Sales, Mobiles and Accounts.</small></div>`;
+function saveSet(){
+  if(cur.role!=='admin')return;
+  const n=val('s1').trim();if(!n)return toast('Enter shop name');
+  Object.assign(db.set,{shop:n,addr:val('s2').trim(),tel:val('s3').trim(),low:Math.max(0,+val('s4')||0),lock:Math.max(1,+val('s5')||10),months:Math.min(36,Math.max(1,+val('s6')||3))});
+  save();toast('Settings saved ✓');draw();
+}
+function syncAcc(){db.set.accs=[...ACCS];save();draw()}
+function renAcc(i){
+  if(cur.role!=='admin')return;const n=val('ra'+i).trim(),o=ACCS[i];
+  if(!n)return toast('Enter a name');if(n!==o&&ACCS.includes(n))return toast('Name already used');
+  db.txns.forEach(t=>{if(t.acc===o)t.acc=n});db.sales.forEach(s=>{if(s.acc===o)s.acc=n;(s.pays||[]).forEach(p=>{if(p.acc===o)p.acc=n})});
+  ACCS[i]=n;sf.acc=ACCS[3]||ACCS[0];toast('Renamed ✓');syncAcc();
+}
+function addAccount(){if(cur.role!=='admin')return;const n=val('na').trim();if(!n)return toast('Enter a name');if(ACCS.includes(n))return toast('Name already used');ACCS.push(n);syncAcc()}
+function delAccount(i){
+  if(cur.role!=='admin')return;const a=ACCS[i];
+  if(ACCS.length<=1)return toast('Keep at least one account');
+  if(db.txns.some(t=>t.acc===a)||db.sales.some(s=>s.acc===a||(s.pays||[]).some(p=>p.acc===a)))return toast('This account has records, can’t remove');
+  ACCS.splice(i,1);sf.acc=ACCS[3]||ACCS[0];syncAcc();
+}
+
+const NI={sale:'🛒',return:'↩️',edit:'✏️',delete:'🗑️',stock:'📦',low:'⚠️',out:'⛔',inst:'💰',due:'⏰',login:'👤',security:'🔒'};
+const fmtT=ts=>new Date(ts).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+function notify(type,msg,p,key){
+  if(key&&db.notes.some(n=>n.key===key))return;
+  db.notes.push({id:uid(),ts:Date.now(),type,msg,p:p===undefined?'admin':p,key:key||''});
+  if(db.notes.length>300)db.notes.splice(0,db.notes.length-300);
+}
+const vis=n=>!!cur&&(cur.role==='admin'||n.p===''||(n.p!=='admin'&&can(n.p)));
+const unread=()=>db.notes.filter(n=>vis(n)&&n.ts>(cur.seen||0)).length;
+function saleNotes(s,it){
+  notify('sale',(s.by||'Someone')+' sold '+s.name+(s.imei?' ('+s.imei+')':'')+(s.qty>1?' ×'+s.qty:'')+' for '+M(s.total)+(s.pay==='inst'?' (installment)':''),'admin');
+  if(s.kind==='acc'){if(it.qty<=db.set.low)notify('low','Low stock: '+it.name+' — '+it.qty+' left','')}
+  else{const n=db.phones.filter(p=>p.status==='in'&&mkey(p)===mkey(it)).length;if(n<=db.set.low)notify(n?'low':'out',n?'Low stock: '+s.name+' — '+n+' left':s.name+' is out of stock','')}
+}
+function checkDue(){
+  const t=today();
+  db.sales.filter(s=>s.pay==='inst'&&!s.returned).forEach(s=>{
+    const due=s.total-paidOf(s);if(due<=0)return;const nd=addM(s.date,(s.pays||[]).length+1);
+    if(nd<=t)notify('due',(nd<t?'Overdue: ':'Due today: ')+s.cust+' ('+s.phone+') '+M(Math.min(s.monthly,due))+' for '+s.name+' — due '+nd,'inst','due-'+s.id+'-'+nd+(nd<t?'-o':''));
+  });
+  save();
+}
+const noteRow=(n,t0)=>{const u=n.ts>t0;return `<div class="row"${u?' style="background:var(--bg);margin:0 -14px;padding:10px 14px"':''}><div><b style="font-weight:${u?700:500}">${NI[n.type]||'🔔'} ${esc(n.msg)}</b><small>${fmtT(n.ts)}</small></div>${u?'<span class="tag ok">New</span>':''}</div>`};
+V.notes=()=>{
+  const t0=cur.seen||0,L=db.notes.filter(vis).slice().reverse();cur.seen=Date.now();save();
+  return `<div class="card"><div class="bar" style="margin:0 0 8px"><h2 style="margin:0;flex:1">🔔 Notifications</h2>${cur.role==='admin'&&L.length?`<button class="btn g s" onclick="clearNotes()">Clear all</button>`:''}</div>${L.length?L.map(n=>noteRow(n,t0)).join(''):empty('No notifications yet')}</div>`;
+};
+function clearNotes(){if(cur.role!=='admin')return;db.notes=[];save();draw()}
+function noteCard(){
+  const L=db.notes.filter(vis).slice().reverse(),u=unread();
+  return L.length?`<div class="card"><div class="bar" style="margin:0 0 6px"><h2 style="margin:0;flex:1">🔔 Notifications${u?` <span class="tag bad">${u} new</span>`:''}</h2><button class="btn o s" onclick="go('notes')">View all</button></div>${L.slice(0,4).map(n=>noteRow(n,cur.seen||0)).join('')}</div>`:'';
+}
 function draw(){
-  if(!cur){$('nav').innerHTML='';dateTxt();$('app').innerHTML=authView();return}
+  if(!cur){$('nav').innerHTML='';dateTxt();applySet();$('app').innerHTML=authView();return}
   if(!tabOk(view))view='dash';
-  $('nav').innerHTML=TABS.filter(t=>tabOk(t[0])).map(t=>`<button data-v="${t[0]}" class="${t[0]===view?'on':''}" onclick="go('${t[0]}')">${t[1]}</button>`).join('')+`<button onclick="lock()">🔒 ${esc(cur.name)}</button>`;
-  dateTxt();$('app').innerHTML=V[view]();
+  const h=V[view](),n=unread();
+  $('nav').innerHTML=TABS.filter(t=>tabOk(t[0])).map(t=>`<button data-v="${t[0]}" class="${t[0]===view?'on':''}" onclick="go('${t[0]}')">${t[0]==='notes'?'🔔 Notifications'+(n?` <span class="tag bad" style="margin-left:4px">${n}</span>`:''):t[1]}</button>`).join('')+`<button onclick="lock()">🔒 ${esc(cur.name)}</button>`;
+  dateTxt();applySet();$('app').innerHTML=h;
 }
 
 let hd=today(),act=null;
@@ -250,10 +351,10 @@ V.hist=()=>{
   const L=db.sales.filter(s=>!hd||s.date===hd).slice().reverse();
   const s=act&&db.sales.find(x=>x.id===act.id);
   return `${s?panel(s):''}<div class="card"><div class="bar"><label>Date<input type="date" value="${hd}" onchange="hd=this.value;draw()"></label><button class="btn o s" onclick="hd='';draw()">All dates</button></div>
-  ${L.length?L.map(s=>`<div class="row"><div><b>${esc(s.name)}${s.qty>1?' ×'+s.qty:''}</b><small>${s.date}${s.by?' · '+esc(s.by):''} · ${s.imei?'IMEI '+esc(s.imei)+' · ':''}${esc(s.cust||'Walk-in')}</small></div><div class="r"><b>${M(s.total)}</b>${s.returned?'<span class="tag bad">Returned</span>':`<div><button class="btn o s" onclick="act={t:'edit',id:'${s.id}'};draw();scrollTo(0,0)">Edit</button> <button class="btn g s" onclick="act={t:'ret',id:'${s.id}'};draw();scrollTo(0,0)">Return</button></div>`}</div></div>`).join(''):empty('No sales found')}</div>`;
+  ${L.length?L.map(s=>`<div class="row"><div><b>${esc(s.name)}${s.qty>1?' ×'+s.qty:''}</b><small>${s.date}${s.by?' · '+esc(s.by):''} · ${s.imei?'IMEI '+esc(s.imei)+' · ':''}${esc(s.cust||'Walk-in')}</small></div><div class="r"><b>${M(s.total)}</b>${s.returned?'<span class="tag bad">Returned</span>':`<div><button class="btn o s" onclick="act={t:'edit',id:'${s.id}'};draw();scrollTo(0,0)">Edit</button> <button class="btn g s" onclick="act={t:'ret',id:'${s.id}'};draw();scrollTo(0,0)">Return</button></div>`}${can('delsale')?`<div style="margin-top:4px"><button class="btn g s" onclick="act={t:'del',id:'${s.id}'};draw();scrollTo(0,0)">Delete</button></div>`:''}</div></div>`).join(''):empty('No sales found')}</div>${exportCard()}`;
 };
 function panel(s){
-  const x=act.t==='edit'
+  const x=act.t==='del'?delPanel(s):act.t==='edit'
   ?`<h2>Edit sale · ${esc(s.name)}</h2><div class="f"><label>Customer<input id="ec" value="${esc(s.cust)}"></label><label>Number<input id="ep" value="${esc(s.phone)}"></label><label>Unit price (৳)<input id="ev" type="number" min="0" value="${s.price}"></label><label>Discount (৳)<input id="ed" type="number" min="0" value="${s.disc}"></label><label>Date<input id="ee" type="date" value="${s.date}"></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="saveEdit('${s.id}')">Save changes</button><button class="btn o" onclick="act=null;draw()">Cancel</button></div>`
   :`<h2>Return · ${esc(s.name)}${s.imei?' · '+esc(s.imei):''}</h2><small>Item goes back to stock. Received so far: ${M(paidOf(s))}</small><div class="f" style="margin-top:8px"><label>Refund amount (৳)<input id="ra" type="number" min="0" value="${paidOf(s)}"></label><label>Refund from<select id="rb">${accOpts(s.acc)}</select></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="doReturn('${s.id}')">Confirm return</button><button class="btn o" onclick="act=null;draw()">Cancel</button></div>`;
   return `<div class="card" style="border-color:var(--pr)">${x}</div>`;
@@ -264,6 +365,7 @@ function saveEdit(id){if(!can('hist'))return toast('Not allowed');
   const total=Math.max(0,price*s.qty-disc);
   if(s.pay==='inst'){const p=paidOf(s);if(total<p)return toast('Total is less than already paid');s.monthly=Math.ceil((total-p)/s.months)}
   else{const d=total-s.paid;s.paid=total;if(d>0)txn(s.acc,'in',d,'Sale edit: '+s.name,'sale');if(d<0)txn(s.acc,'out',-d,'Sale edit: '+s.name,'refund')}
+  notify('edit',cur.name+' edited sale: '+s.name+' ('+M(s.total)+' → '+M(total)+')','admin');
   Object.assign(s,{price,disc,total,cust:val('ec').trim(),phone:val('ep').trim(),date:val('ee')||s.date});
   save();act=null;toast('Sale updated ✓');draw();
 }
@@ -272,7 +374,7 @@ function doReturn(id){if(!can('hist'))return toast('Not allowed');
   if(amt<0||amt>paidOf(s))return toast('Refund can’t exceed '+Math.round(paidOf(s)));
   if(s.kind==='phone'){const p=db.phones.find(x=>x.imei===s.imei);if(p){p.status='in';delete p.saleId}}
   else{const a=db.acc.find(x=>x.name.toLowerCase()===s.name.toLowerCase());if(a)a.qty+=s.qty;else db.acc.push({id:uid(),name:s.name,qty:s.qty,cost:0,price:s.price})}
-  s.returned=true;s.retDate=today();s.refund=amt;
+  s.returned=true;s.retDate=today();s.refund=amt;notify('return',(cur?cur.name:'')+' returned '+s.name+(s.imei?' ('+s.imei+')':'')+', refund '+M(amt),'admin');
   txn(val('rb'),'out',amt,'Return: '+s.name+(s.imei?' / '+s.imei:''),'refund');
   save();act=null;toast('Return done ✓');draw();
 }
@@ -284,7 +386,7 @@ V.phones=()=>`${can('stockin')?`<div class="card"><h2>Purchase mobiles (many IME
   <label>Supplier<input id="pu"></label><label>Paid from<select id="pa"><option value="">Don’t record</option>${accOpts('')}</select></label>
   <label class="full">IMEI list — one per line (paste or type)<textarea id="pi" rows="6" oninput="imeiChk()" placeholder="123456789012345"></textarea></label></div>
   <div class="row"><small id="ichk">0 IMEI</small><div style="display:flex;gap:6px">${scanBtn('stock')}<button class="btn" onclick="addPhones()">Add to stock</button></div></div></div>`:''}
-  <div class="card"><div class="bar"><label>Search model / IMEI<input id="qs" value="${esc(q)}" oninput="q=this.value;list()"></label>${scanBtn('search')}</div><div id="pl">${shelves()}</div></div>`;
+  <div class="card"><div class="bar"><label>Search model / IMEI<input id="qs" value="${esc(q)}" oninput="q=this.value;list()"></label>${scanBtn('search')}</div><div id="pl">${shelves()}</div></div>${stockCard()}`;
 function parseI(){const t=val('pi').split(/[\s,;]+/).filter(Boolean),ok=t.filter(x=>/^\d{15}$/.test(x)),u=[...new Set(ok)];
   return{n:t.length,ok:u,bad:t.length-ok.length,dup:ok.length-u.length,ex:u.filter(i=>db.phones.some(p=>p.imei===i))}}
 function imeiChk(){
@@ -299,6 +401,7 @@ function addPhones(){if(!can('stockin'))return toast('Not allowed');
   if(r.bad||r.dup||r.ex.length)return toast('Fix invalid / repeated / existing IMEI first');
   const cost=+val('pc')||0,price=+val('ps')||0,sup=val('pu').trim(),a=val('pa');
   r.ok.forEach(imei=>db.phones.push({id:uid(),brand,model,imei,cost,price,supplier:sup,date:today(),status:'in'}));
+  notify('stock',(cur?cur.name:'')+' added '+r.ok.length+' × '+brand+' '+model+' to stock','admin');
   if(a)txn(a,'out',cost*r.ok.length,'Purchase: '+brand+' '+model+' ×'+r.ok.length,'purchase');
   save();toast(r.ok.length+' phone(s) added ✓');draw();
 }
@@ -317,12 +420,13 @@ V.acc=()=>`${can('stockin')?`<div class="card"><h2>Add / restock accessory</h2><
   <label>Cost each (৳)<input id="ac" type="number" min="0"></label><label>Selling price (৳)<input id="ap" type="number" min="0"></label>
   <label>Paid from<select id="aa"><option value="">Don’t record</option>${accOpts('')}</select></label></div>
   <div style="margin-top:10px"><button class="btn" onclick="addAcc()">Save to stock</button></div></div>`:''}
-  <div class="card"><h2>Accessories stock</h2>${db.acc.length?db.acc.map(a=>`<div class="row"><div><b>${esc(a.name)}</b><small>${can('cost')?'cost '+M(a.cost)+' · ':''}price ${M(a.price)}</small></div><div class="r"><span class="tag ${a.qty<=3?'bad':'ok'}">${a.qty} pcs</span> ${can('del')?`<button class="btn g s" onclick="delAcc('${a.id}')">✕</button>`:''}</div></div>`).join(''):empty('No accessories yet')}</div>`;
+  <div class="card"><h2>Accessories stock</h2>${db.acc.length?db.acc.map(a=>`<div class="row"><div><b>${esc(a.name)}</b><small>${can('cost')?'cost '+M(a.cost)+' · ':''}price ${M(a.price)}</small></div><div class="r"><span class="tag ${a.qty<=db.set.low?'bad':'ok'}">${a.qty} pcs</span> ${can('del')?`<button class="btn g s" onclick="delAcc('${a.id}')">✕</button>`:''}</div></div>`).join(''):empty('No accessories yet')}</div>${stockCard()}`;
 function addAcc(){if(!can('stockin'))return toast('Not allowed');
   const name=val('an').trim(),qty=+val('aq'),cost=+val('ac')||0,price=+val('ap')||0,a=val('aa');
   if(!name||!(qty>0))return toast('Enter name and quantity');
   let it=db.acc.find(x=>x.name.toLowerCase()===name.toLowerCase());
   if(it){it.qty+=qty;if(cost)it.cost=cost;if(price)it.price=price}else db.acc.push({id:uid(),name,qty,cost,price});
+  notify('stock',(cur?cur.name:'')+' added '+qty+' × '+name+' to stock','admin');
   if(a)txn(a,'out',cost*qty,'Stock: '+name+' ×'+qty,'purchase');
   save();toast('Stock updated ✓');draw();
 }
@@ -350,7 +454,7 @@ V.inst=()=>{
 function payInst(id){if(!can('inst'))return toast('Not allowed');
   const s=db.sales.find(x=>x.id===id),a=+val('ia'+id),acc=val('ib'+id),due=s.total-paidOf(s);
   if(!(a>0)||a>due)return toast('Amount must be 1–'+Math.round(due));
-  s.pays.push({date:today(),amt:a,acc});txn(acc,'in',a,'Installment: '+s.cust+' / '+s.name,'inst');save();toast('Payment received ✓');draw();
+  s.pays.push({date:today(),amt:a,acc});notify('inst',cur.name+' received '+M(a)+' from '+s.cust+' ('+s.name+')','admin');txn(acc,'in',a,'Installment: '+s.cust+' / '+s.name,'inst');save();toast('Payment received ✓');draw();
 }
 
 V.accounts=()=>{
