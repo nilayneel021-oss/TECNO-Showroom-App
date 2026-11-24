@@ -26,8 +26,8 @@ main{max-width:980px;margin:0 auto;padding:14px 14px 40px}
 h2{font-size:15px;margin:0 0 10px}
 form,.f{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 label{display:grid;gap:4px;font-size:12px;color:var(--mu);font-weight:600}
-input,select{width:100%;padding:10px 11px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
-input:focus,select:focus{outline:2px solid var(--pr);outline-offset:0}
+input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--bd);border-radius:10px;background:var(--bg);color:var(--tx);font:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offset:0}
 .btn{border:0;background:var(--pr);color:var(--pt);padding:11px 16px;border-radius:10px;font:600 14px inherit;font-family:inherit;cursor:pointer}
 .btn.s{padding:7px 11px;font-size:12px}.btn.g{background:transparent;color:var(--bad);border:1px solid var(--bd)}.btn.o{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}
 .row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--bd)}
@@ -40,9 +40,10 @@ input:focus,select:focus{outline:2px solid var(--pr);outline-offset:0}
 .empty{color:var(--mu);text-align:center;padding:18px}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:20;max-width:90%}
 #toast.show{opacity:1}
+.shelf{border-top:1px solid var(--bd);padding:8px 0}.shelf:first-child{border-top:0}summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none}summary::-webkit-details-marker{display:none}summary small{display:block;color:var(--mu)}textarea{resize:vertical;font-family:ui-monospace,monospace}
 </style></head>
 <body>
-<header><div class="top"><div><h1>📱 TECNO Official Showroom by TECH Hub</h1><small>Bazar Road, Beside The One Bank, Sadar Lakshmipur</small><br><small id="dt"></small></div></div><nav id="nav"></nav></header>
+<header><div class="top"><div><h1><svg width="36" height="36" viewBox="0 0 48 48" style="vertical-align:-10px;margin-right:6px"><rect width="48" height="48" rx="11" fill="#4F46E5"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#fff"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#4F46E5"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#4F46E5"/></svg>TECNO Official Showroom by TECH Hub</h1><small>Bazar Road, Beside The One Bank, Sadar Lakshmipur</small><br><small id="dt"></small></div></div><nav id="nav"></nav></header>
 <main id="app"></main><div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -69,7 +70,7 @@ const paidOf=s=>s.paid+(s.pays||[]).reduce((a,p)=>a+p.amt,0);
 
 let view='dash',dd=today(),sf={kind:'phone',item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:3,acc:ACCS[3]};
 let q='',ex={from:today(),to:today()};
-const TABS=[['dash','Dashboard'],['sell','Sell'],['phones','Mobiles'],['acc','Accessories'],['inst','Installments'],['accounts','Accounts'],['promos','Promos']];
+const TABS=[['dash','Dashboard'],['sell','Sell'],['hist','Sales'],['phones','Mobiles'],['acc','Accessories'],['inst','Installments'],['accounts','Accounts'],['promos','Promos']];
 $('nav').innerHTML=TABS.map(t=>`<button data-v="${t[0]}" onclick="go('${t[0]}')">${t[1]}</button>`).join('');
 function go(v){view=v;q='';draw()}
 function draw(){
@@ -81,12 +82,12 @@ const empty=t=>`<div class="empty">${t}</div>`;
 
 const V={};
 V.dash=()=>{
-  const S=db.sales.filter(s=>s.date===dd);
+  const S=db.sales.filter(s=>s.date===dd&&!s.returned);
   const tot=S.reduce((a,s)=>a+s.total,0);
   const col=db.txns.filter(t=>t.date===dd&&t.type==='in'&&(t.cat==='sale'||t.cat==='inst')).reduce((a,t)=>a+t.amt,0);
   const stock=db.phones.filter(p=>p.status==='in').length;
   const low=db.acc.filter(a=>a.qty<=3);
-  const due=db.sales.filter(s=>s.pay==='inst').reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0);
+  const due=db.sales.filter(s=>s.pay==='inst'&&!s.returned).reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0);
   return `<div class="card hero"><div class="k">${dd===today()?'Today':esc(dd)} · Sales</div><div class="v" style="font-size:32px">${M(tot)}</div><div style="opacity:.9">${S.length} sale(s) · collected ${M(col)}</div></div>
   <div class="grid" style="margin-bottom:12px">
    ${ACCS.map(a=>`<div class="card"><div class="k">${a}</div><div class="v ${bal(a)<0?'bad':''}">${M(bal(a))}</div></div>`).join('')}
@@ -98,14 +99,21 @@ V.dash=()=>{
   ${low.length?`<div class="card"><h2>⚠️ Low accessories stock</h2>${low.map(a=>`<div class="row"><b>${esc(a.name)}</b><span class="tag bad">${a.qty} left</span></div>`).join('')}</div>`:''}`;
 };
 
+const mkey=p=>(p.brand+' '+p.model).trim().toLowerCase();
+function models(){const m={};db.phones.forEach(p=>{const k=mkey(p);(m[k]=m[k]||{key:k,name:p.brand+' '+p.model,list:[]}).list.push(p)});return Object.values(m).sort((a,b)=>a.name.localeCompare(b.name))}
+const findItem=id=>db.phones.find(p=>p.id===id)||db.acc.find(a=>a.id===id);
+
 V.sell=()=>{
-  const ph=db.phones.filter(p=>p.status==='in'),ac=db.acc.filter(a=>a.qty>0);
-  const items=sf.kind==='phone'?ph.map(p=>[p.id,`${p.brand} ${p.model} · ${p.imei}`]):ac.map(a=>[a.id,`${a.name} (${a.qty} in stock)`]);
+  const ms=models().filter(m=>m.list.some(p=>p.status==='in')),ac=db.acc.filter(a=>a.qty>0);
+  const cur=ms.find(m=>m.key===sf.model);
+  const imeis=cur?cur.list.filter(p=>p.status==='in').map(p=>[p.id,p.imei]):[];
   const g=calc();
   return `<div class="card"><h2>New sale</h2><div class="f">
-  <label>Type<select onchange="sset('kind',this.value);sf.item='';sf.price='';draw()"><option value="phone"${sf.kind==='phone'?' selected':''}>Mobile phone</option><option value="acc"${sf.kind==='acc'?' selected':''}>Accessory</option></select></label>
-  <label class="full">Product<select onchange="pick(this.value)"><option value="">— select —</option>${opts(items,sf.item)}</select></label>
-  ${sf.kind==='acc'?`<label>Quantity<input type="number" min="1" value="${sf.qty}" onchange="sset('qty',this.value);draw()"></label>`:''}
+  <label>Type<select onchange="sf.kind=this.value;sf.item='';sf.price='';sf.model='';draw()"><option value="phone"${sf.kind==='phone'?' selected':''}>Mobile phone</option><option value="acc"${sf.kind==='acc'?' selected':''}>Accessory</option></select></label>
+  ${sf.kind==='phone'?`<label>Model<select onchange="setModel(this.value)"><option value="">— select —</option>${opts(ms.map(m=>[m.key,m.name+' ('+m.list.filter(p=>p.status==='in').length+')']),sf.model)}</select></label>
+  <label>IMEI<select onchange="pick(this.value)"><option value="">— select —</option>${opts(imeis,sf.item)}</select></label>`
+  :`<label class="full">Product<select onchange="pick(this.value)"><option value="">— select —</option>${opts(ac.map(a=>[a.id,a.name+' ('+a.qty+' in stock)']),sf.item)}</select></label>
+  <label>Quantity<input type="number" min="1" value="${sf.qty}" onchange="sset('qty',this.value);draw()"></label>`}
   <label>Unit price (৳)<input type="number" min="0" value="${sf.price}" onchange="sset('price',this.value);draw()"></label>
   <label>Promo offer<select onchange="sset('promo',this.value);draw()"><option value="">None</option>${opts(db.promos.filter(p=>p.on).map(p=>[p.id,p.name+' ('+(p.type==='pct'?p.val+'%':M(p.val))+')']),sf.promo)}</select></label>
   <label>Customer name<input value="${esc(sf.cust)}" onchange="sset('cust',this.value)"></label>
@@ -116,7 +124,8 @@ V.sell=()=>{
   <div class="row" style="margin-top:10px"><div><small>Discount ${M(g.disc)}</small><b style="font-size:20px">Total ${M(g.total)}</b>${sf.pay==='inst'?`<small>Balance ${M(g.total-g.down)} · ${M(g.monthly)}/month</small>`:''}</div><button class="btn" onclick="sell()">Complete sale</button></div></div>`;
 };
 function sset(k,v){sf[k]=v}
-function pick(id){sf.item=id;const it=sf.kind==='phone'?db.phones.find(p=>p.id===id):db.acc.find(a=>a.id===id);sf.price=it?it.price:'';draw()}
+function setModel(k){sf.model=k;const m=models().find(x=>x.key===k),p=m&&m.list.find(x=>x.status==='in');sf.item=p?p.id:'';sf.price=p?p.price:'';draw()}
+function pick(id){sf.item=id;const it=findItem(id);sf.price=it?it.price:'';draw()}
 function calc(){
   const qty=sf.kind==='phone'?1:Math.max(1,+sf.qty||1),gross=(+sf.price||0)*qty;
   const p=db.promos.find(x=>x.id===sf.promo);
@@ -126,8 +135,7 @@ function calc(){
   return{qty,gross,disc,total,down,months,monthly:Math.ceil((total-down)/months)};
 }
 function sell(){
-  const g=calc();
-  const it=sf.kind==='phone'?db.phones.find(p=>p.id===sf.item):db.acc.find(a=>a.id===sf.item);
+  const g=calc(),it=findItem(sf.item);
   if(!it)return toast('Select a product');
   if(!(+sf.price>0))return toast('Enter a price');
   if(sf.kind==='acc'&&g.qty>it.qty)return toast('Only '+it.qty+' in stock');
@@ -136,33 +144,75 @@ function sell(){
   db.sales.push(s);
   if(sf.kind==='phone'){it.status='sold';it.saleId=s.id}else it.qty-=g.qty;
   txn(sf.acc,'in',g.down,'Sale: '+s.name+(s.imei?' / '+s.imei:''),'sale');
-  save();sf={kind:sf.kind,item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:3,acc:sf.acc};
+  save();sf={kind:sf.kind,model:sf.model,item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:3,acc:sf.acc};
   toast('Sale saved ✓');draw();
 }
 
-V.phones=()=>{
-  const L=db.phones.filter(p=>(p.brand+p.model+p.imei).toLowerCase().includes(q.toLowerCase())).slice().reverse();
-  return `<div class="card"><h2>Purchase mobile</h2><div class="f">
-  <label>Brand<input id="pb" placeholder="Tecno"></label><label>Model<input id="pm" placeholder="Spark 20"></label>
-  <label>IMEI (15 digits)<input id="pi" inputmode="numeric" maxlength="15"></label>
-  <label>Purchase price (৳)<input id="pc" type="number" min="0"></label><label>Selling price (৳)<input id="ps" type="number" min="0"></label>
-  <label>Supplier<input id="pu"></label><label>Paid from<select id="pa"><option value="">Don’t record</option>${accOpts('')}</select></label></div>
-  <div style="margin-top:10px"><button class="btn" onclick="addPhone()">Add to stock</button></div></div>
-  <div class="card"><div class="bar"><label>Search model / IMEI<input value="${esc(q)}" oninput="q=this.value;list()" id="qs"></label></div>
-  <div id="pl">${plist(L)}</div></div>`;
+let hd=today(),act=null;
+V.hist=()=>{
+  const L=db.sales.filter(s=>!hd||s.date===hd).slice().reverse();
+  const s=act&&db.sales.find(x=>x.id===act.id);
+  return `${s?panel(s):''}<div class="card"><div class="bar"><label>Date<input type="date" value="${hd}" onchange="hd=this.value;draw()"></label><button class="btn o s" onclick="hd='';draw()">All dates</button></div>
+  ${L.length?L.map(s=>`<div class="row"><div><b>${esc(s.name)}${s.qty>1?' ×'+s.qty:''}</b><small>${s.date} · ${s.imei?'IMEI '+esc(s.imei)+' · ':''}${esc(s.cust||'Walk-in')}</small></div><div class="r"><b>${M(s.total)}</b>${s.returned?'<span class="tag bad">Returned</span>':`<div><button class="btn o s" onclick="act={t:'edit',id:'${s.id}'};draw();scrollTo(0,0)">Edit</button> <button class="btn g s" onclick="act={t:'ret',id:'${s.id}'};draw();scrollTo(0,0)">Return</button></div>`}</div></div>`).join(''):empty('No sales found')}</div>`;
 };
-const plist=L=>L.length?L.map(p=>`<div class="row"><div><b>${esc(p.brand)} ${esc(p.model)}</b><small>IMEI ${esc(p.imei)} · cost ${M(p.cost)}${p.supplier?' · '+esc(p.supplier):''}</small></div><div class="r"><b>${M(p.price)}</b><span class="tag ${p.status==='in'?'ok':''}">${p.status==='in'?'In stock':'Sold'}</span>${p.status==='in'?` <button class="btn g s" onclick="delPhone('${p.id}')">✕</button>`:''}</div></div>`).join(''):empty('No phones yet');
-function list(){const L=db.phones.filter(p=>(p.brand+p.model+p.imei).toLowerCase().includes(q.toLowerCase())).slice().reverse();$('pl').innerHTML=plist(L)}
-function addPhone(){
-  const imei=val('pi').trim(),brand=val('pb').trim(),model=val('pm').trim();
-  if(!brand||!model)return toast('Enter brand and model');
-  if(!/^\d{15}$/.test(imei))return toast('IMEI must be 15 digits');
-  if(db.phones.some(p=>p.imei===imei))return toast('This IMEI already exists');
-  const cost=+val('pc')||0,a=val('pa');
-  db.phones.push({id:uid(),brand,model,imei,cost,price:+val('ps')||0,supplier:val('pu').trim(),date:today(),status:'in'});
-  if(a)txn(a,'out',cost,'Purchase: '+brand+' '+model+' / '+imei,'purchase');
-  save();toast('Added to stock ✓');draw();
+function panel(s){
+  const x=act.t==='edit'
+  ?`<h2>Edit sale · ${esc(s.name)}</h2><div class="f"><label>Customer<input id="ec" value="${esc(s.cust)}"></label><label>Number<input id="ep" value="${esc(s.phone)}"></label><label>Unit price (৳)<input id="ev" type="number" min="0" value="${s.price}"></label><label>Discount (৳)<input id="ed" type="number" min="0" value="${s.disc}"></label><label>Date<input id="ee" type="date" value="${s.date}"></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="saveEdit('${s.id}')">Save changes</button><button class="btn o" onclick="act=null;draw()">Cancel</button></div>`
+  :`<h2>Return · ${esc(s.name)}${s.imei?' · '+esc(s.imei):''}</h2><small>Item goes back to stock. Received so far: ${M(paidOf(s))}</small><div class="f" style="margin-top:8px"><label>Refund amount (৳)<input id="ra" type="number" min="0" value="${paidOf(s)}"></label><label>Refund from<select id="rb">${accOpts(s.acc)}</select></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="doReturn('${s.id}')">Confirm return</button><button class="btn o" onclick="act=null;draw()">Cancel</button></div>`;
+  return `<div class="card" style="border-color:var(--pr)">${x}</div>`;
 }
+function saveEdit(id){
+  const s=db.sales.find(x=>x.id===id),price=+val('ev'),disc=+val('ed')||0;
+  if(!(price>0))return toast('Enter a price');
+  const total=Math.max(0,price*s.qty-disc);
+  if(s.pay==='inst'){const p=paidOf(s);if(total<p)return toast('Total is less than already paid');s.monthly=Math.ceil((total-p)/s.months)}
+  else{const d=total-s.paid;s.paid=total;if(d>0)txn(s.acc,'in',d,'Sale edit: '+s.name,'sale');if(d<0)txn(s.acc,'out',-d,'Sale edit: '+s.name,'refund')}
+  Object.assign(s,{price,disc,total,cust:val('ec').trim(),phone:val('ep').trim(),date:val('ee')||s.date});
+  save();act=null;toast('Sale updated ✓');draw();
+}
+function doReturn(id){
+  const s=db.sales.find(x=>x.id===id),amt=+val('ra')||0;
+  if(amt<0||amt>paidOf(s))return toast('Refund can’t exceed '+Math.round(paidOf(s)));
+  if(s.kind==='phone'){const p=db.phones.find(x=>x.imei===s.imei);if(p){p.status='in';delete p.saleId}}
+  else{const a=db.acc.find(x=>x.name.toLowerCase()===s.name.toLowerCase());if(a)a.qty+=s.qty;else db.acc.push({id:uid(),name:s.name,qty:s.qty,cost:0,price:s.price})}
+  s.returned=true;s.retDate=today();s.refund=amt;
+  txn(val('rb'),'out',amt,'Return: '+s.name+(s.imei?' / '+s.imei:''),'refund');
+  save();act=null;toast('Return done ✓');draw();
+}
+
+V.phones=()=>`<div class="card"><h2>Purchase mobiles (many IMEI at once)</h2><div class="f">
+  <label>Brand<input id="pb" placeholder="Tecno"></label><label>Model<input id="pm" placeholder="Go 3"></label>
+  <label>Quantity (auto-add)<input id="pq" type="number" min="1" placeholder="10" oninput="imeiChk()"></label>
+  <label>Purchase price each (৳)<input id="pc" type="number" min="0"></label><label>Selling price (৳)<input id="ps" type="number" min="0"></label>
+  <label>Supplier<input id="pu"></label><label>Paid from<select id="pa"><option value="">Don’t record</option>${accOpts('')}</select></label>
+  <label class="full">IMEI list — one per line (paste or type)<textarea id="pi" rows="6" oninput="imeiChk()" placeholder="123456789012345"></textarea></label></div>
+  <div class="row"><small id="ichk">0 IMEI</small><button class="btn" onclick="addPhones()">Add to stock</button></div></div>
+  <div class="card"><div class="bar"><label>Search model / IMEI<input value="${esc(q)}" oninput="q=this.value;list()"></label></div><div id="pl">${shelves()}</div></div>`;
+function parseI(){const t=val('pi').split(/[\s,;]+/).filter(Boolean),ok=t.filter(x=>/^\d{15}$/.test(x)),u=[...new Set(ok)];
+  return{n:t.length,ok:u,bad:t.length-ok.length,dup:ok.length-u.length,ex:u.filter(i=>db.phones.some(p=>p.imei===i))}}
+function imeiChk(){
+  const r=parseI(),e=$('ichk');if(!e)return;
+  e.innerHTML=`<b class="${r.bad||r.dup||r.ex.length?'bad':'ok'}">${r.ok.length} valid IMEI</b>${r.bad?` · ${r.bad} invalid`:''}${r.dup?` · ${r.dup} repeated`:''}${r.ex.length?` · ${r.ex.length} already in stock`:''}`;
+  const qn=+val('pq');if(qn&&r.ok.length===qn&&!r.bad&&!r.dup&&!r.ex.length&&val('pb').trim()&&val('pm').trim())addPhones();
+}
+function addPhones(){
+  const brand=val('pb').trim(),model=val('pm').trim(),r=parseI();
+  if(!brand||!model)return toast('Enter brand and model');
+  if(!r.ok.length)return toast('Enter IMEI numbers');
+  if(r.bad||r.dup||r.ex.length)return toast('Fix invalid / repeated / existing IMEI first');
+  const cost=+val('pc')||0,price=+val('ps')||0,sup=val('pu').trim(),a=val('pa');
+  r.ok.forEach(imei=>db.phones.push({id:uid(),brand,model,imei,cost,price,supplier:sup,date:today(),status:'in'}));
+  if(a)txn(a,'out',cost*r.ok.length,'Purchase: '+brand+' '+model+' ×'+r.ok.length,'purchase');
+  save();toast(r.ok.length+' phone(s) added ✓');draw();
+}
+function shelves(){
+  const ql=q.toLowerCase().trim();
+  const S=models().map(m=>({m,L:m.list.filter(p=>!ql||(m.name+p.imei).toLowerCase().includes(ql))})).filter(x=>x.L.length);
+  return S.length?S.map(({m,L})=>{const n=m.list.filter(p=>p.status==='in').length,pr=m.list[m.list.length-1].price;
+    return `<details class="shelf"${ql?' open':''}><summary><div><b>${esc(m.name)}</b><small>${m.list.length-n} sold · price ${M(pr)}</small></div><span class="tag ${n?'ok':'bad'}">${n} in stock</span></summary>
+    ${L.slice().reverse().map(p=>`<div class="row"><div><b style="font-weight:600">${esc(p.imei)}</b><small>cost ${M(p.cost)}${p.supplier?' · '+esc(p.supplier):''} · ${p.date}</small></div><div class="r"><span class="tag ${p.status==='in'?'ok':''}">${p.status==='in'?'In stock':'Sold'}</span>${p.status==='in'?` <button class="btn g s" onclick="delPhone('${p.id}')">✕</button>`:''}</div></div>`).join('')}</details>`}).join(''):empty('No phones yet');
+}
+function list(){$('pl').innerHTML=shelves()}
 function delPhone(id){if(!confirm('Remove this phone from stock?'))return;db.phones=db.phones.filter(p=>p.id!==id);save();draw()}
 
 V.acc=()=>`<div class="card"><h2>Add / restock accessory</h2><div class="f">
@@ -192,7 +242,7 @@ function togPromo(id){const p=db.promos.find(x=>x.id===id);p.on=!p.on;save();dra
 function delPromo(id){db.promos=db.promos.filter(p=>p.id!==id);save();draw()}
 
 V.inst=()=>{
-  const L=db.sales.filter(s=>s.pay==='inst').slice().reverse();
+  const L=db.sales.filter(s=>s.pay==='inst'&&!s.returned).slice().reverse();
   const open=L.filter(s=>s.total-paidOf(s)>0),done=L.filter(s=>s.total-paidOf(s)<=0);
   const card=s=>{const paid=paidOf(s),due=s.total-paid,n=(s.pays||[]).length+1,nd=addM(s.date,n),late=due>0&&nd<today();
   return `<div class="card"><div class="row" style="border:0;padding-top:0"><div><b>${esc(s.cust)}</b><small>${esc(s.phone)} · ${esc(s.name)}${s.imei?' · '+esc(s.imei):''}</small></div><div class="r"><b class="${due>0?'warn':'ok'}">${due>0?M(due)+' due':'Paid'}</b><small>of ${M(s.total)}</small></div></div>
@@ -224,15 +274,12 @@ async function exportX(){
   const sl=db.sales.filter(x=>ok(x.date)).map(s=>({Date:s.date,Product:s.name,IMEI:s.imei,Qty:s.qty,Price:s.price,Discount:s.disc,Total:s.total,Customer:s.cust,Phone:s.phone,Payment:s.pay==='inst'?'Installment':'Full',Paid:paidOf(s),Due:s.total-paidOf(s)}));
   const sm=ACCS.map(a=>{const r=db.txns.filter(x=>x.acc===a&&ok(x.date));const i=r.filter(x=>x.type==='in').reduce((s,x)=>s+x.amt,0),o=r.filter(x=>x.type==='out').reduce((s,x)=>s+x.amt,0);return{Account:a,In:i,Out:o,Net:i-o,'Balance now':bal(a)}});
   const wb=XLSX.utils.book_new();wb.Props={Title:'TECNO Official Showroom by TECH Hub'};
-  [['Summary',sm],['Transactions',tx],['Sales',sl]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n));
-  const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
-  try{
-    const filename=`accounts_${ex.from}_to_${ex.to}.xlsx`;
-    if(window.Android&&typeof Android.saveExcel==='function'){
-      const b64=XLSX.write(wb,{type:'base64',bookType:'xlsx'});
-      Android.saveExcel(filename,b64);toast('Excel export started ✓');
-    }else{XLSX.writeFile(wb,filename);toast('Exported ✓')}
-  }catch(e){toast('Export failed')}
+  [['Summary',sm],['Transactions',tx],['Sales',sl],['Mobile stock',db.phones.map(p=>({Model:p.brand+' '+p.model,IMEI:p.imei,Cost:p.cost,Price:p.price,Supplier:p.supplier,Added:p.date,Status:p.status==='in'?'In stock':'Sold'}))]].forEach(([n,d])=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n));
+  try{const fn=`accounts_${ex.from}_to_${ex.to}.xlsx`;
+    if(window.Android&&typeof Android.saveExcel==='function'){Android.saveExcel(fn,XLSX.write(wb,{type:'base64',bookType:'xlsx'}));toast('Excel export started ✓')}
+    else if(window.claude&&claude.use){const dl=await claude.use('downloads');await dl.save({filename:fn,data:XLSX.write(wb,{type:'array',bookType:'xlsx'})});toast('Exported ✓')}
+    else{XLSX.writeFile(wb,fn);toast('Exported ✓')}
+  }catch(e){if(!e||e.code!=='declined')toast('Export failed')}
 }
 draw();
 </script></body></html>
