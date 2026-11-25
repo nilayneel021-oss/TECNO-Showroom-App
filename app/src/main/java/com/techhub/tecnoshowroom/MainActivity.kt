@@ -2,6 +2,8 @@ package com.techhub.tecnoshowroom
 
 import android.app.Activity
 import android.content.ContentValues
+import android.content.Intent
+import android.provider.OpenableColumns
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -38,7 +40,70 @@ class MainActivity : Activity() {
         webView.evaluateJavascript("$fn(" + org.json.JSONObject.quote(arg) + ")", null)
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data
+        if (requestCode == 4711 && resultCode == RESULT_OK && uri != null) {
+            try {
+                var name = "file"
+                contentResolver.query(uri, null, null, null, null)?.use { c ->
+                    val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (c.moveToFirst() && i >= 0) name = c.getString(i)
+                }
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+                val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                webView.evaluateJavascript("onFilePicked(" + org.json.JSONObject.quote(name) + "," + org.json.JSONObject.quote(b64) + ")", null)
+            } catch (e: Exception) {
+                runOnUiThread { Toast.makeText(this, "Could not read file", Toast.LENGTH_LONG).show() }
+            }
+        }
+    }
+
     inner class DownloadBridge {
+        @JavascriptInterface
+        fun pickFile() {
+            runOnUiThread {
+                val i = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "*/*"
+                }
+                startActivityForResult(i, 4711)
+            }
+        }
+
+        @JavascriptInterface
+        fun saveBackup(filename: String, text: String) {
+            try {
+                val safeName = filename.substringAfterLast('/').substringAfterLast('\\')
+                val bytes = text.toByteArray(Charsets.UTF_8)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val values = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, safeName)
+                        put(MediaStore.Downloads.MIME_TYPE, "application/json")
+                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/TECNO Showroom")
+                    }
+                    val uri: Uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                        ?: throw Exception("Unable to create backup")
+                    contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                        ?: throw Exception("Unable to write backup")
+                    runOnUiThread {
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/json"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        startActivity(Intent.createChooser(send, "Save backup to Drive / Gmail"))
+                    }
+                } else {
+                    val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: filesDir
+                    FileOutputStream(File(dir, safeName)).use { it.write(bytes) }
+                    runOnUiThread { Toast.makeText(this@MainActivity, "Backup saved in app Downloads", Toast.LENGTH_LONG).show() }
+                }
+            } catch (e: Exception) {
+                runOnUiThread { Toast.makeText(this@MainActivity, "Backup failed: " + e.message, Toast.LENGTH_LONG).show() }
+            }
+        }
+
         @JavascriptInterface
         fun scan() {
             runOnUiThread {
