@@ -284,7 +284,7 @@ function applySet(){const e=$('shn');if(e)e.textContent=db.set.shop;const a=$('s
 V.settings=()=>`<div class="card"><h2>Shop details</h2><div class="f"><label class="full">Shop name<input id="s1" value="${esc(db.set.shop)}"></label><label class="full">Address<input id="s2" value="${esc(db.set.addr)}"></label><label>Phone<input id="s3" type="tel" value="${esc(db.set.tel)}"></label></div></div>
   <div class="card"><h2>Preferences</h2><div class="f"><label>Low-stock alert (pcs or less)<input id="s4" type="number" min="0" value="${db.set.low}"></label><label>Auto-lock after (minutes)<input id="s5" type="number" min="1" value="${db.set.lock}"></label><label>Default installment months<input id="s6" type="number" min="1" max="36" value="${db.set.months}"></label></div><div style="margin-top:10px"><button class="btn" onclick="saveSet()">Save settings</button></div></div>
   <div class="card"><h2>Accounts</h2>${ACCS.map((a,i)=>`<div class="bar" style="margin:0 0 8px"><label>Account ${i+1}<input id="ra${i}" value="${esc(a)}"></label><button class="btn o s" onclick="renAcc(${i})">Rename</button><button class="btn g s" onclick="delAccount(${i})">✕</button></div>`).join('')}<div class="bar" style="margin:8px 0 0"><label>New account<input id="na" placeholder="e.g. bKash"></label><button class="btn s" onclick="addAccount()">Add</button></div><small>An account can be removed only if it has no records.</small></div>
-  <div class="card"><h2>☁️ Backup & Restore</h2><small>Last backup: ${db.set.lastBackup?fmtT(db.set.lastBackup):'never'}. A backup saves everything in one file. After it is created, choose Google Drive or Gmail from the share menu.</small><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="doBackup()">Backup now</button>${canPick()?`<button class="btn o" onclick="Android.pickFile()">Restore / import file</button>`:`<label>Restore / import file<input type="file" accept=".json,.xlsx" onchange="webPick(this)"></label>`}</div></div>
+  <div class="card"><h2>☁️ Backup & Restore</h2><small>Last backup: ${db.set.lastBackup?fmtT(db.set.lastBackup):'never'}. A backup saves everything in one file (${db.phones.length} phones, ${db.acc.length} accessories, ${db.sales.length} sales, ${db.txns.length} transactions, ${db.promos.length} promos, ${db.users.length} users, ${db.notes.length} notifications). After it is created, choose Google Drive or Gmail from the share menu.</small><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="doBackup()">Backup now</button><button class="btn o" onclick="exportAll()">Export ALL data (Excel)</button>${canPick()?`<button class="btn o" onclick="Android.pickFile()">Restore / import file</button>`:`<label>Restore / import file<input type="file" accept=".json,.xlsx" onchange="webPick(this)"></label>`}</div></div>
   <div class="card"><h2>Data on this device</h2><small>${db.phones.length} phones · ${db.sales.length} sales · ${db.txns.length} transactions · ${db.users.length} users. Data is stored on this device only, so export regularly from Sales, Mobiles and Accounts.</small></div>`;
 function saveSet(){
   if(cur.role!=='admin')return;
@@ -356,7 +356,7 @@ async function doBackup(){
     if(window.Android&&typeof Android.saveBackup==='function')Android.saveBackup(fn,txt);
     else if(window.claude&&claude.use){const dl=await claude.use('downloads');await dl.save({filename:fn,data:new TextEncoder().encode(txt).buffer})}
     else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=fn;a.click()}
-    db.set.lastBackup=Date.now();save();toast('Backup created ✓');draw();
+    db.set.lastBackup=Date.now();save();toast('Backup: '+db.phones.length+' phones, '+db.sales.length+' sales, '+db.txns.length+' transactions ✓');draw();
   }catch(e){toast('Backup failed')}
 }
 function onFilePicked(name,b64){
@@ -389,6 +389,32 @@ function importStockXlsx(bin){
     db.phones.push({id:uid(),brand,model,imei,cost:num(r.Cost),price:num(r.Price),supplier:String(r.Supplier||''),date:String(r.Added||today()),status:/sold/i.test(r.Status||'')?'sold':'in'});add++;
   });
   save();toast(add+' phones imported'+(skip?', '+skip+' skipped':''));draw();
+}
+
+async function exportAll(){
+  if(!cur||cur.role!=='admin')return toast('Admin only');
+  if(typeof XLSX==='undefined')return toast('Excel library not loaded');
+  const wb=XLSX.utils.book_new(),t=today(),open=db.sales.filter(s=>s.pay==='inst'&&!s.returned);
+  const soldTo=p=>db.sales.filter(x=>x.imei===p.imei&&!x.returned).slice(-1)[0];
+  sheet(wb,'Summary',[...ACCS.map(a=>({Item:'Balance: '+a,Value:bal(a)})),
+    {Item:'Phones in stock',Value:db.phones.filter(p=>p.status==='in').length},{Item:'Phones sold',Value:db.phones.filter(p=>p.status!=='in').length},
+    {Item:'Total sales (not returned)',Value:db.sales.filter(s=>!s.returned).length},{Item:'Sales value (not returned)',Value:db.sales.filter(s=>!s.returned).reduce((a,s)=>a+s.total,0)},
+    {Item:'Installment due',Value:open.reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0)},{Item:'Exported on',Value:t}]);
+  sheet(wb,'By model',models().map(m=>{const n=m.list.filter(p=>p.status==='in').length;return{Model:m.name,'In stock':n,Sold:m.list.length-n,Total:m.list.length}}));
+  sheet(wb,'Mobiles',db.phones.map(p=>{const s=soldTo(p);return{Model:p.brand+' '+p.model,IMEI:p.imei,Price:p.price,Cost:p.cost,Supplier:p.supplier,Added:p.date,Status:p.status==='in'?'In stock':'Sold','Sold to':p.status==='in'||!s?'':s.cust,'Sold phone':p.status==='in'||!s?'':s.phone,'Sold on':p.status==='in'||!s?'':s.date}}));
+  sheet(wb,'Accessories',db.acc.map(a=>({Name:a.name,Qty:a.qty,Price:a.price,Cost:a.cost})));
+  sheet(wb,'Sales',db.sales.map(s=>({Date:s.date,Product:s.name,IMEI:s.imei,Qty:s.qty,'Unit price':s.price,Discount:s.disc,Total:s.total,Customer:s.cust,Phone:s.phone,Payment:s.pay==='inst'?'Installment':'Full',Received:paidOf(s),Due:s.returned?0:s.total-paidOf(s),Status:s.returned?'Returned':'Sold','Sold by':s.by||'',Account:s.acc})));
+  sheet(wb,'Installments',db.sales.filter(s=>s.pay==='inst').map(s=>{const p=paidOf(s),d=s.returned?0:s.total-p;return{Customer:s.cust,Phone:s.phone,Product:s.name,IMEI:s.imei,'Sale date':s.date,Total:s.total,'Down payment':s.paid,Months:s.months,'Monthly amount':s.monthly,'Paid so far':p,Due:d,'Next due date':d>0?addM(s.date,(s.pays||[]).length+1):'',Status:s.returned?'Returned':d>0?'Open':'Completed'}}));
+  const ip=[];db.sales.filter(s=>s.pay==='inst').forEach(s=>{if(s.paid>0)ip.push({Date:s.date,Customer:s.cust,Phone:s.phone,Product:s.name,Amount:s.paid,Account:s.acc,Type:'Down payment'});(s.pays||[]).forEach(p=>ip.push({Date:p.date,Customer:s.cust,Phone:s.phone,Product:s.name,Amount:p.amt,Account:p.acc,Type:'Installment'}))});
+  sheet(wb,'Installment payments',ip);
+  sheet(wb,'Transactions',db.txns.map(x=>({Date:x.date,Time:x.time||'',Account:x.acc,Type:x.type==='in'?'In':'Out',Amount:x.amt,Note:x.note,Category:x.cat||''})));
+  const cu={};db.sales.filter(s=>!s.returned&&(s.cust||s.phone)).forEach(s=>{const c=cu[s.phone||s.cust]=cu[s.phone||s.cust]||{Customer:s.cust,Phone:s.phone,Purchases:0,'Total bought':0,Due:0};c.Purchases++;c['Total bought']+=s.total;c.Due+=Math.max(0,s.total-paidOf(s))});
+  sheet(wb,'Customers',Object.values(cu));
+  sheet(wb,'Promos',db.promos.map(p=>({Name:p.name,Type:p.type==='pct'?'Percent':'Amount',Value:p.val,Active:p.on?'Yes':'No'})));
+  sheet(wb,'Deleted sales',db.del.map(s=>({Date:s.date,Product:s.name,IMEI:s.imei,Total:s.total,Customer:s.cust,Phone:s.phone,'Sold by':s.by||'','Deleted on':s.delDate,'Deleted by':s.delBy})));
+  sheet(wb,'Users',db.users.map(u=>({Name:u.name,Role:u.role,Permissions:u.role==='admin'?'All':PERMS.filter(p=>u.perms[p[0]]).map(p=>p[1]).join(', ')})));
+  sheet(wb,'Notifications',db.notes.slice().reverse().map(n=>({Time:fmtT(n.ts),Type:n.type,Message:n.msg})));
+  await saveWb(wb,`all-data_${t}.xlsx`);
 }
 
 let hd=today(),act=null;
