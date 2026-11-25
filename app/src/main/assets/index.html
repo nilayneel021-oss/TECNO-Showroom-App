@@ -284,6 +284,7 @@ function applySet(){const e=$('shn');if(e)e.textContent=db.set.shop;const a=$('s
 V.settings=()=>`<div class="card"><h2>Shop details</h2><div class="f"><label class="full">Shop name<input id="s1" value="${esc(db.set.shop)}"></label><label class="full">Address<input id="s2" value="${esc(db.set.addr)}"></label><label>Phone<input id="s3" type="tel" value="${esc(db.set.tel)}"></label></div></div>
   <div class="card"><h2>Preferences</h2><div class="f"><label>Low-stock alert (pcs or less)<input id="s4" type="number" min="0" value="${db.set.low}"></label><label>Auto-lock after (minutes)<input id="s5" type="number" min="1" value="${db.set.lock}"></label><label>Default installment months<input id="s6" type="number" min="1" max="36" value="${db.set.months}"></label></div><div style="margin-top:10px"><button class="btn" onclick="saveSet()">Save settings</button></div></div>
   <div class="card"><h2>Accounts</h2>${ACCS.map((a,i)=>`<div class="bar" style="margin:0 0 8px"><label>Account ${i+1}<input id="ra${i}" value="${esc(a)}"></label><button class="btn o s" onclick="renAcc(${i})">Rename</button><button class="btn g s" onclick="delAccount(${i})">✕</button></div>`).join('')}<div class="bar" style="margin:8px 0 0"><label>New account<input id="na" placeholder="e.g. bKash"></label><button class="btn s" onclick="addAccount()">Add</button></div><small>An account can be removed only if it has no records.</small></div>
+  <div class="card"><h2>☁️ Backup & Restore</h2><small>Last backup: ${db.set.lastBackup?fmtT(db.set.lastBackup):'never'}. A backup saves everything in one file. After it is created, choose Google Drive or Gmail from the share menu.</small><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="doBackup()">Backup now</button>${canPick()?`<button class="btn o" onclick="Android.pickFile()">Restore / import file</button>`:`<label>Restore / import file<input type="file" accept=".json,.xlsx" onchange="webPick(this)"></label>`}</div></div>
   <div class="card"><h2>Data on this device</h2><small>${db.phones.length} phones · ${db.sales.length} sales · ${db.txns.length} transactions · ${db.users.length} users. Data is stored on this device only, so export regularly from Sales, Mobiles and Accounts.</small></div>`;
 function saveSet(){
   if(cur.role!=='admin')return;
@@ -306,7 +307,7 @@ function delAccount(i){
   ACCS.splice(i,1);sf.acc=ACCS[3]||ACCS[0];syncAcc();
 }
 
-const NI={sale:'🛒',return:'↩️',edit:'✏️',delete:'🗑️',stock:'📦',low:'⚠️',out:'⛔',inst:'💰',due:'⏰',login:'👤',security:'🔒'};
+const NI={sale:'🛒',return:'↩️',edit:'✏️',delete:'🗑️',stock:'📦',low:'⚠️',out:'⛔',inst:'💰',due:'⏰',login:'👤',security:'🔒',backup:'☁️'};
 const fmtT=ts=>new Date(ts).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 function notify(type,msg,p,key){
   if(key&&db.notes.some(n=>n.key===key))return;
@@ -326,6 +327,7 @@ function checkDue(){
     const due=s.total-paidOf(s);if(due<=0)return;const nd=addM(s.date,(s.pays||[]).length+1);
     if(nd<=t)notify('due',(nd<t?'Overdue: ':'Due today: ')+s.cust+' ('+s.phone+') '+M(Math.min(s.monthly,due))+' for '+s.name+' — due '+nd,'inst','due-'+s.id+'-'+nd+(nd<t?'-o':''));
   });
+  if(cur&&cur.role==='admin'&&(!db.set.lastBackup||Date.now()-db.set.lastBackup>3*864e5))notify('backup','Backup reminder: '+(db.set.lastBackup?'last backup '+fmtT(db.set.lastBackup):'no backup yet')+'. Open Settings → Backup now.','admin','bk-'+today());
   save();
 }
 const noteRow=(n,t0)=>{const u=n.ts>t0;return `<div class="row"${u?' style="background:var(--bg);margin:0 -14px;padding:10px 14px"':''}><div><b style="font-weight:${u?700:500}">${NI[n.type]||'🔔'} ${esc(n.msg)}</b><small>${fmtT(n.ts)}</small></div>${u?'<span class="tag ok">New</span>':''}</div>`};
@@ -344,6 +346,49 @@ function draw(){
   const h=V[view](),n=unread();
   $('nav').innerHTML=TABS.filter(t=>tabOk(t[0])).map(t=>`<button data-v="${t[0]}" class="${t[0]===view?'on':''}" onclick="go('${t[0]}')">${t[0]==='notes'?'🔔 Notifications'+(n?` <span class="tag bad" style="margin-left:4px">${n}</span>`:''):t[1]}</button>`).join('')+`<button onclick="lock()">🔒 ${esc(cur.name)}</button>`;
   dateTxt();applySet();$('app').innerHTML=h;
+}
+
+const canPick=()=>!!(window.Android&&typeof Android.pickFile==='function');
+async function doBackup(){
+  if(!cur||cur.role!=='admin')return toast('Admin only');
+  const fn=`tecno-backup-${today()}.json`,txt=JSON.stringify(db);
+  try{
+    if(window.Android&&typeof Android.saveBackup==='function')Android.saveBackup(fn,txt);
+    else if(window.claude&&claude.use){const dl=await claude.use('downloads');await dl.save({filename:fn,data:new TextEncoder().encode(txt).buffer})}
+    else{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=fn;a.click()}
+    db.set.lastBackup=Date.now();save();toast('Backup created ✓');draw();
+  }catch(e){toast('Backup failed')}
+}
+function onFilePicked(name,b64){
+  const n=String(name).toLowerCase();let bin;
+  try{bin=Uint8Array.from(atob(b64),c=>c.charCodeAt(0))}catch(e){return toast('Could not read file')}
+  if(n.endsWith('.json'))restoreData(new TextDecoder().decode(bin));
+  else if(n.endsWith('.xlsx')||n.endsWith('.xls'))importStockXlsx(bin);
+  else toast('Choose a .json backup or .xlsx stock file');
+}
+function webPick(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const u=new Uint8Array(r.result);let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));onFilePicked(f.name,btoa(s))};r.readAsArrayBuffer(f)}
+function restoreData(txt){
+  if(!cur||cur.role!=='admin')return toast('Admin only');
+  let d;try{d=JSON.parse(txt)}catch(e){return toast('Not a valid backup file')}
+  if(!d||!Array.isArray(d.phones)||!Array.isArray(d.sales)||!Array.isArray(d.txns))return toast('Not a TECNO backup file');
+  if(!confirm('Replace ALL current data with this backup ('+d.phones.length+' phones, '+d.sales.length+' sales)?'))return;
+  Object.keys(db).forEach(k=>delete db[k]);Object.assign(db,d);
+  db.users=db.users||[];db.notes=db.notes||[];db.del=db.del||[];db.acc=db.acc||[];db.promos=db.promos||[];
+  db.set=Object.assign({shop:'TECNO Official Showroom by TECH Hub',addr:'Bazar Road, Beside The One Bank, Sadar Lakshmipur',tel:'',low:3,lock:10,months:3,accs:['BRAC Bank','Tecno Virtual Account','PalmPay','Cash On Hand']},db.set);
+  ACCS.length=0;ACCS.push(...db.set.accs);save();cur=null;authS.mode='';toast('Backup restored ✓ Login again');draw();
+}
+function importStockXlsx(bin){
+  if(!cur||!can('stockin'))return toast('Not allowed');
+  let wb;try{wb=XLSX.read(bin,{type:'array'})}catch(e){return toast('Could not read Excel file')}
+  const ws=wb.Sheets['Mobiles'];if(!ws)return toast('No "Mobiles" sheet. Use the file from Mobiles → Export stock');
+  let add=0,skip=0;
+  XLSX.utils.sheet_to_json(ws,{raw:false,defval:''}).forEach(r=>{
+    const imei=String(r.IMEI||'').replace(/\D/g,''),mod=String(r.Model||'').trim();
+    if(!/^\d{15}$/.test(imei)||!mod||db.phones.some(p=>p.imei===imei)){skip++;return}
+    const sp=mod.split(' '),brand=sp.shift(),model=sp.join(' ')||brand,num=v=>+String(v||'').replace(/[^\d.]/g,'')||0;
+    db.phones.push({id:uid(),brand,model,imei,cost:num(r.Cost),price:num(r.Price),supplier:String(r.Supplier||''),date:String(r.Added||today()),status:/sold/i.test(r.Status||'')?'sold':'in'});add++;
+  });
+  save();toast(add+' phones imported'+(skip?', '+skip+' skipped':''));draw();
 }
 
 let hd=today(),act=null;
