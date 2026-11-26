@@ -40,7 +40,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offs
 .empty{color:var(--mu);text-align:center;padding:18px}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:20;max-width:90%}
 #toast.show{opacity:1}
-.shelf{border-top:1px solid var(--bd);padding:8px 0}.shelf:first-child{border-top:0}summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none}summary::-webkit-details-marker{display:none}summary small{display:block;color:var(--mu)}textarea{resize:vertical;font-family:ui-monospace,monospace}
+.shelf{border-top:1px solid var(--bd);padding:8px 0}.shelf:first-child{border-top:0}summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none}summary::-webkit-details-marker{display:none}summary small{display:block;color:var(--mu)}textarea{resize:vertical;font-family:ui-monospace,monospace}.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}@media(min-width:640px){.tiles{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}.tile{position:relative;border:1px solid var(--bd);background:var(--card);border-radius:16px;padding:12px 4px 10px;text-align:center;cursor:pointer;font:inherit;color:var(--tx);display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}.tile:active{transform:scale(.96)}.tile i{font-style:normal;font-size:26px;width:50px;height:50px;display:grid;place-items:center;border-radius:15px;margin-bottom:2px}.tile b{font-size:13px;line-height:1.2}.tile small{font-size:11px;color:var(--mu)}.tile .bd{position:absolute;top:6px;right:8px;background:var(--bad);color:#fff;border-radius:99px;font-size:11px;font-weight:700;padding:1px 7px}
 </style></head>
 <body>
 <header><div class="top"><div><h1><svg width="36" height="36" viewBox="0 0 48 48" style="vertical-align:-10px;margin-right:6px"><rect width="48" height="48" rx="11" fill="#4F46E5"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#fff"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#4F46E5"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#4F46E5"/></svg><span id="shn">TECNO Official Showroom by TECH Hub</span></h1><small id="sha">Bazar Road, Beside The One Bank, Sadar Lakshmipur</small><br><small id="dt"></small></div></div><nav id="nav"></nav></header>
@@ -71,8 +71,8 @@ const paidOf=s=>s.paid+(s.pays||[]).reduce((a,p)=>a+p.amt,0);
 
 let view='dash',dd=today(),sf={kind:'phone',item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:db.set.months,acc:ACCS[3]||ACCS[0]};
 let q='',ex={from:today(),to:today()};
-const TABS=[['dash','Dashboard'],['notes','Notifications'],['sell','Sell'],['hist','Sales'],['phones','Mobiles'],['acc','Accessories'],['inst','Installments'],['accounts','Accounts'],['promos','Promos'],['users','Users'],['settings','Settings']];
-function go(v){if(!tabOk(v))return;view=v;q='';ckR='';draw()}
+const TABS=[['dash','🏠 Home'],['notes','Notifications'],['sell','🛒 Sell'],['hist','🧾 Sales'],['phones','📱 Mobiles'],['acc','🎧 Accessories'],['inst','💳 Installments'],['accounts','🏦 Accounts'],['promos','🏷️ Promos'],['users','👥 Users'],['settings','⚙️ Settings']];
+function go(v){if(!tabOk(v))return;view=v;q='';ckR='';draw();try{scrollTo(0,0)}catch(e){}}
 const empty=t=>`<div class="empty">${t}</div>`;
 
 const V={};
@@ -84,6 +84,7 @@ V.dash=()=>{
   const low=db.acc.filter(a=>a.qty<=db.set.low);
   const due=db.sales.filter(s=>s.pay==='inst'&&!s.returned).reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0);
   return `${can('accounts')?`<div class="card hero"><div class="k">${dd===today()?'Today':esc(dd)} · Sales</div><div class="v" style="font-size:32px">${M(tot)}</div><div style="opacity:.9">${S.length} sale(s) · collected ${M(col)}</div></div>`:''}
+  ${homeGrid()}
   ${noteCard()}${ckCard()}
   <div class="grid" style="margin-bottom:12px">
    ${can('accounts')?ACCS.map(a=>`<div class="card"><div class="k">${a}</div><div class="v ${bal(a)<0?'bad':''}">${M(bal(a))}</div></div>`).join(''):''}
@@ -375,6 +376,7 @@ function draw(){
   if(!tabOk(view))view='dash';
   const h=V[view](),n=unread();
   $('nav').innerHTML=TABS.filter(t=>tabOk(t[0])).map(t=>`<button data-v="${t[0]}" class="${t[0]===view?'on':''}" onclick="go('${t[0]}')">${t[0]==='notes'?'🔔 Notifications'+(n?` <span class="tag bad" style="margin-left:4px">${n}</span>`:''):t[1]}</button>`).join('')+`<button onclick="lock()">🔒 ${esc(cur.name)}</button>`;
+  try{$('nav').querySelector('button.on').scrollIntoView({inline:'center',block:'nearest'})}catch(e){}
   dateTxt();applySet();$('app').innerHTML=h;
 }
 
@@ -469,6 +471,18 @@ function onDriveResult(r){
   dManual=false;saveDm();dRender();
 }
 function onDriveRestore(text){restoreData(text)}
+
+const TILE={sell:['🛒','#4f46e5','Sell'],phones:['📱','#8b5cf6','Mobiles'],acc:['🎧','#ec4899','Accessories'],hist:['🧾','#0ea5e9','Sales'],inst:['💳','#f59e0b','Installments'],accounts:['🏦','#10b981','Accounts'],promos:['🏷️','#ef4444','Promos'],notes:['🔔','#f97316','Notifications'],users:['👥','#6366f1','Users'],settings:['⚙️','#64748b','Settings']};
+function goCheck(){const e=$('ck');if(e){e.scrollIntoView({behavior:'smooth',block:'center'});e.focus()}}
+function homeGrid(){
+  const t=today(),inStock=db.phones.filter(p=>p.status==='in').length,todayN=db.sales.filter(s=>s.date===t&&!s.returned).length;
+  const due=db.sales.filter(s=>s.pay==='inst'&&!s.returned&&s.total-paidOf(s)>0&&addM(s.date,(s.pays||[]).length+1)<=t).length;
+  const sub={sell:'New sale',phones:inStock+' in stock',acc:db.acc.length+' items',hist:todayN+' today',inst:due?due+' due':'Collect',accounts:'Balances',promos:db.promos.filter(p=>p.on).length+' active',notes:'Alerts',users:db.users.length+' users',settings:'Shop & backup'};
+  const bd={notes:unread(),inst:due};
+  const mk=(ic,c,l,s,click,b)=>`<button class="tile" onclick="${click}"><i style="background:${c}22">${ic}</i><b>${l}</b><small>${s}</small>${b?`<span class="bd">${b}</span>`:''}</button>`;
+  const tiles=Object.keys(TILE).filter(k=>tabOk(k)).map(k=>mk(TILE[k][0],TILE[k][1],TILE[k][2],sub[k],`go('${k}')`,bd[k])).join('');
+  return `<div class="tiles">${tiles}${mk('🔎','#14b8a6','Check IMEI','In stock?','goCheck()',0)}${canScan()?mk('📷','#0891b2','Scan IMEI','Camera',"scanGo('check')",0):''}</div>`;
+}
 
 let hd=today(),act=null;
 V.hist=()=>{
