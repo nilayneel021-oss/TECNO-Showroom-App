@@ -43,7 +43,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offs
 .shelf{border-top:1px solid var(--bd);padding:8px 0}.shelf:first-child{border-top:0}summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none}summary::-webkit-details-marker{display:none}summary small{display:block;color:var(--mu)}textarea{resize:vertical;font-family:ui-monospace,monospace}.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}@media(min-width:640px){.tiles{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}.tile{position:relative;border:1px solid var(--bd);background:var(--card);border-radius:16px;padding:12px 4px 10px;text-align:center;cursor:pointer;font:inherit;color:var(--tx);display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}.tile:active{transform:scale(.96)}.tile i{font-style:normal;font-size:26px;width:50px;height:50px;display:grid;place-items:center;border-radius:15px;margin-bottom:2px}.tile b{font-size:13px;line-height:1.2}.tile small{font-size:11px;color:var(--mu)}.tile .bd{position:absolute;top:6px;right:8px;background:var(--bad);color:#fff;border-radius:99px;font-size:11px;font-weight:700;padding:1px 7px}
 </style></head>
 <body>
-<header><div class="top"><div><h1><svg width="36" height="36" viewBox="0 0 48 48" style="vertical-align:-10px;margin-right:6px"><rect width="48" height="48" rx="11" fill="#4F46E5"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#fff"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#4F46E5"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#4F46E5"/></svg><span id="shn">TECNO Official Showroom by TECH Hub</span></h1><small id="sha">Bazar Road, Beside The One Bank, Sadar Lakshmipur</small><br><small id="dt"></small></div></div><nav id="nav"></nav></header>
+<header><div class="top"><div><h1><span id="shl"><svg width="36" height="36" viewBox="0 0 48 48" style="vertical-align:-10px;margin-right:6px"><rect width="48" height="48" rx="11" fill="#4F46E5"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#fff"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#4F46E5"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#4F46E5"/></svg></span><span id="shn">TECNO Official Showroom by TECH Hub</span></h1><small id="sha">Bazar Road, Beside The One Bank, Sadar Lakshmipur</small><br><small id="dt"></small></div></div><nav id="nav"></nav></header>
 <main id="app"></main><div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -51,7 +51,7 @@ const ACCS=['BRAC Bank','Tecno Virtual Account','PalmPay','Cash On Hand'];
 const K='mobshop_v1';
 let db={phones:[],acc:[],promos:[],sales:[],txns:[]};
 try{let s=localStorage.getItem(K);if(!s&&window.Android&&typeof Android.loadData==='function')s=Android.loadData();if(s)db=Object.assign(db,JSON.parse(s))}catch(e){}
-db.set=Object.assign({shop:'TECNO Official Showroom by TECH Hub',addr:'Bazar Road, Beside The One Bank, Sadar Lakshmipur',tel:'',low:3,lock:10,months:3,accs:[...ACCS]},db.set);db.del=db.del||[];db.notes=db.notes||[];ACCS.length=0;ACCS.push(...db.set.accs);
+db.set=Object.assign({shop:'TECNO Official Showroom by TECH Hub',addr:'Bazar Road, Beside The One Bank, Sadar Lakshmipur',tel:'',low:3,lock:10,months:3,accs:[...ACCS]},db.set);db.del=db.del||[];db.notes=db.notes||[];db.costs=db.costs||[];db.msgs=db.msgs||[];ACCS.length=0;ACCS.push(...db.set.accs);
 const save=()=>{try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}try{if(window.Android&&typeof Android.persist==='function')Android.persist(JSON.stringify(db))}catch(e){}if(typeof driveSoon==='function')driveSoon()};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const pad=n=>String(n).padStart(2,'0');
@@ -71,7 +71,7 @@ const paidOf=s=>s.paid+(s.pays||[]).reduce((a,p)=>a+p.amt,0);
 
 let view='dash',dd=today(),sf={kind:'phone',item:'',qty:1,price:'',promo:'',cust:'',phone:'',pay:'full',down:'',months:db.set.months,acc:ACCS[3]||ACCS[0]};
 let q='',ex={from:today(),to:today()};
-const TABS=[['dash','🏠 Home'],['notes','Notifications'],['sell','🛒 Sell'],['hist','🧾 Sales'],['phones','📱 Mobiles'],['acc','🎧 Accessories'],['inst','💳 Installments'],['accounts','🏦 Accounts'],['promos','🏷️ Promos'],['users','👥 Users'],['settings','⚙️ Settings']];
+const TABS=[['dash','🏠 Home'],['notes','Notifications'],['chat','💬 Messages'],['sell','🛒 Sell'],['hist','🧾 Sales'],['phones','📱 Mobiles'],['acc','🎧 Accessories'],['inst','💳 Installments'],['accounts','🏦 Accounts'],['promos','🏷️ Promos'],['costs','💸 Costs'],['users','👥 Users'],['settings','⚙️ Settings']];
 function go(v){if(!tabOk(v))return;view=v;q='';ckR='';draw();try{scrollTo(0,0)}catch(e){}}
 const empty=t=>`<div class="empty">${t}</div>`;
 
@@ -183,10 +183,10 @@ function checkImei(v){
 }
 
 db.users=db.users||[];
-const PERMS=[['sell','Sell products'],['price','Change selling price'],['stockin','Add stock (purchase)'],['cost','See purchase prices'],['del','Delete stock items'],['hist','Sales history, edit & return'],['delsale','Delete a sale'],['export','Export sales & stock to Excel'],['inst','Installments'],['accounts','Accounts, balances & totals'],['promos','Manage promos']];
+const PERMS=[['sell','Sell products'],['price','Change selling price'],['stockin','Add stock (purchase)'],['cost','See purchase prices'],['del','Delete stock items'],['hist','Sales history, edit & return'],['costs','Costs & profit (rent, bills)'],['delsale','Delete a sale'],['export','Export sales & stock to Excel'],['inst','Installments'],['accounts','Accounts, balances & totals'],['promos','Manage promos']];
 let cur=null,authS={mode:'',tries:0,until:0,rc:''},recShow='',idle=Date.now();
 const can=p=>!!cur&&(cur.role==='admin'||!!(cur.perms&&cur.perms[p]));
-const tabOk=v=>({sell:()=>can('sell'),hist:()=>can('hist'),inst:()=>can('inst'),accounts:()=>can('accounts'),promos:()=>can('promos'),users:()=>cur&&cur.role==='admin',settings:()=>cur&&cur.role==='admin'}[v]||(()=>true))();
+const tabOk=v=>({sell:()=>can('sell'),hist:()=>can('hist'),inst:()=>can('inst'),accounts:()=>can('accounts'),promos:()=>can('promos'),costs:()=>can('costs'),users:()=>cur&&cur.role==='admin',settings:()=>cur&&cur.role==='admin'}[v]||(()=>true))();
 const rnd=()=>Math.random().toString(36).slice(2,10);
 function hp(pin,salt){let s=salt+':'+pin,h1=0xdeadbeef,h2=0x41c6ce57;for(let r=0;r<3000;r++){for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677)}h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909)}return(4294967296*(2097151&h2)+(h1>>>0)).toString(36)}
 const okPin=p=>/^\d{4,8}$/.test(p);
@@ -243,8 +243,8 @@ V.users=()=>{
   return `${recShow?`<div class="card" style="border-color:var(--pr)"><h2>New recovery code</h2><div class="v" style="letter-spacing:4px">${recShow}</div><small>Write it down. Old code no longer works.</small><div style="margin-top:10px"><button class="btn o s" onclick="recShow='';draw()">Hide</button></div></div>`:''}
   ${pend.length?`<div class="card" style="border-color:var(--warn)"><h2>Waiting for approval (${pend.length})</h2>${pend.map(u=>`<div class="row"><div><b>${esc(u.name)}</b><small>${esc(u.login||'')}</small></div><div class="r"><button class="btn s" onclick="approveUser('${u.id}')">Approve</button> <button class="btn g s" onclick="rejectUser('${u.id}')">Reject</button></div></div>`).join('')}</div>`:''}
   <div class="card"><h2>Add staff</h2><div class="f"><label>Name<input id="un"></label><label>Phone or Gmail (login)<input id="ul" placeholder="01XXXXXXXXX or name@gmail.com"></label><label>PIN (4–8 digits)<input id="up" type="password" inputmode="numeric" maxlength="8"></label></div><div style="margin-top:10px"><button class="btn" onclick="addUser()">Add staff</button></div></div>
-  ${act.map(u=>u.role==='admin'?`<div class="card"><div class="row" style="border:0;padding:0"><div><b>${esc(u.name)}</b><small>${esc(u.login||'no phone/Gmail set')}</small></div><span class="tag ok">Admin · full access</span></div></div>`
-  :`<div class="card"><div class="row" style="border:0;padding:0 0 8px"><div><b>${esc(u.name)}</b><small>${esc(u.login||'')}</small></div><span class="tag">Staff</span></div>
+  ${act.map(u=>u.role==='admin'?`<div class="card"><div class="row" style="border:0;padding:0"><div style="display:flex;gap:10px;align-items:center">${av(u,40)}<div><b>${esc(u.name)}</b><small>${esc(u.login||'no phone/Gmail set')}</small></div></div><span class="tag ok">Admin · full access</span></div></div>`
+  :`<div class="card"><div class="row" style="border:0;padding:0 0 8px"><div style="display:flex;gap:10px;align-items:center">${av(u,40)}<div><b>${esc(u.name)}</b><small>${esc(u.login||'')}</small></div></div><span class="tag">Staff</span></div><div class="bar" style="margin:0 0 6px"><button class="btn o s" onclick="pickPhoto('${u.id}')">Set photo</button>${u.photo?`<button class="btn g s" onclick="delPhoto('${u.id}')">Remove photo</button>`:''}</div>
   <small>Always allowed: check IMEI, view stock, view dashboard sold items.</small>
   <div style="display:grid;gap:8px;margin:10px 0">${PERMS.map(p=>`<label style="display:flex;gap:8px;align-items:center;font-weight:500;color:var(--tx);font-size:14px"><input type="checkbox" style="width:auto" ${u.perms[p[0]]?'checked':''} onchange="setPerm('${u.id}','${p[0]}',this.checked)">${p[1]}</label>`).join('')}</div>
   <div class="bar" style="margin:0"><label>New PIN<input id="rp${u.id}" type="password" inputmode="numeric" maxlength="8"></label><button class="btn o s" onclick="resetPin('${u.id}')">Reset PIN</button><button class="btn g s" onclick="delUser('${u.id}')">Delete</button></div></div>`).join('')}
@@ -310,8 +310,8 @@ function doDelete(id){
   save();act=null;toast('Sale deleted');draw();
 }
 
-function applySet(){const e=$('shn');if(e)e.textContent=db.set.shop;const a=$('sha');if(a)a.textContent=db.set.addr+(db.set.tel?' · '+db.set.tel:'');document.title=db.set.shop}
-V.settings=()=>`<div class="card"><h2>Shop details</h2><div class="f"><label class="full">Shop name<input id="s1" value="${esc(db.set.shop)}"></label><label class="full">Address<input id="s2" value="${esc(db.set.addr)}"></label><label>Phone<input id="s3" type="tel" value="${esc(db.set.tel)}"></label></div></div>
+function applySet(){const e=$('shn');if(e)e.textContent=db.set.shop;const a=$('sha');if(a)a.textContent=db.set.addr+(db.set.tel?' · '+db.set.tel:'');document.title=db.set.shop;const l=$('shl');if(l){if(window._dl===undefined)window._dl=l.innerHTML;l.innerHTML=db.set.logo?`<img src="${db.set.logo}" style="width:36px;height:36px;border-radius:10px;object-fit:cover;vertical-align:-10px;margin-right:6px">`:window._dl}}
+V.settings=()=>`<div class="card"><h2>Shop details</h2><div class="bar" style="margin:0 0 10px;align-items:center"><span>${db.set.logo?`<img src="${db.set.logo}" style="width:56px;height:56px;border-radius:14px;object-fit:cover">`:'<span style="font-size:34px">📱</span>'}</span><button class="btn o s" onclick="pickPhoto('shop')">Change shop logo</button>${db.set.logo?`<button class="btn g s" onclick="delPhoto('shop')">Remove</button>`:''}</div><div class="f"><label class="full">Shop name<input id="s1" value="${esc(db.set.shop)}"></label><label class="full">Address<input id="s2" value="${esc(db.set.addr)}"></label><label>Phone<input id="s3" type="tel" value="${esc(db.set.tel)}"></label></div></div>
   <div class="card"><h2>Preferences</h2><div class="f"><label>Low-stock alert (pcs or less)<input id="s4" type="number" min="0" value="${db.set.low}"></label><label>Auto-lock after (minutes)<input id="s5" type="number" min="1" value="${db.set.lock}"></label><label>Default installment months<input id="s6" type="number" min="1" max="36" value="${db.set.months}"></label></div><div style="margin-top:10px"><button class="btn" onclick="saveSet()">Save settings</button></div></div>
   <div class="card"><h2>Accounts</h2>${ACCS.map((a,i)=>`<div class="bar" style="margin:0 0 8px"><label>Account ${i+1}<input id="ra${i}" value="${esc(a)}"></label><button class="btn o s" onclick="renAcc(${i})">Rename</button><button class="btn g s" onclick="delAccount(${i})">✕</button></div>`).join('')}<div class="bar" style="margin:8px 0 0"><label>New account<input id="na" placeholder="e.g. bKash"></label><button class="btn s" onclick="addAccount()">Add</button></div><small>An account can be removed only if it has no records.</small></div>
   <div class="card"><h2>Google Drive auto backup</h2><div id="dstat">${dStatus()}</div><small>After connecting, every change is saved to your Google Drive automatically (about 15 seconds later and when the app closes). Needs internet. ${canDrive()?'':'Works only in the Android app.'}</small><div class="bar" style="margin:10px 0 0">${dm.on?`<button class="btn" onclick="driveManual()">Backup to Drive now</button><button class="btn o" onclick="driveRestore()">Restore from Drive</button><button class="btn g" onclick="driveOff()">Disconnect</button>`:`<button class="btn" onclick="driveConnect()">Connect Google Drive</button>`}</div></div>
@@ -374,8 +374,8 @@ function noteCard(){
 function draw(){
   if(!cur){$('nav').innerHTML='';dateTxt();applySet();$('app').innerHTML=authView();return}
   if(!tabOk(view))view='dash';
-  const h=V[view](),n=unread();
-  $('nav').innerHTML=TABS.filter(t=>tabOk(t[0])).map(t=>`<button data-v="${t[0]}" class="${t[0]===view?'on':''}" onclick="go('${t[0]}')">${t[0]==='notes'?'🔔 Notifications'+(n?` <span class="tag bad" style="margin-left:4px">${n}</span>`:''):t[1]}</button>`).join('')+`<button onclick="lock()">🔒 ${esc(cur.name)}</button>`;
+  const h=V[view](),bg={notes:unread(),chat:chatUnread()};
+  $('nav').innerHTML=TABS.filter(t=>tabOk(t[0])).map(t=>`<button data-v="${t[0]}" class="${t[0]===view?'on':''}" onclick="go('${t[0]}')">${t[0]==='notes'?'🔔 Notifications':t[1]}${bg[t[0]]?` <span class="tag bad" style="margin-left:4px">${bg[t[0]]}</span>`:''}</button>`).join('')+`<button data-v="profile" class="${view==='profile'?'on':''}" onclick="go('profile')">${av(cur,22)} ${esc(cur.name)}</button><button onclick="lock()">🔒</button>`;
   try{$('nav').querySelector('button.on').scrollIntoView({inline:'center',block:'nearest'})}catch(e){}
   dateTxt();applySet();$('app').innerHTML=h;
 }
@@ -392,6 +392,7 @@ async function doBackup(){
   }catch(e){toast('Backup failed')}
 }
 function onFilePicked(name,b64){
+  if(photoT){if(/\.(jpe?g|png|webp|gif)$/i.test(String(name))){setPhoto(b64,name);return}photoT='';toast('Please choose a photo (jpg or png)');return}
   const n=String(name).toLowerCase();let bin;
   try{bin=Uint8Array.from(atob(b64),c=>c.charCodeAt(0))}catch(e){return toast('Could not read file')}
   if(n.endsWith('.json'))restoreData(new TextDecoder().decode(bin));
@@ -405,7 +406,7 @@ function restoreData(txt){
   if(!d||!Array.isArray(d.phones)||!Array.isArray(d.sales)||!Array.isArray(d.txns))return toast('Not a TECNO backup file');
   if(!confirm('Replace ALL current data with this backup ('+d.phones.length+' phones, '+d.sales.length+' sales)?'))return;
   Object.keys(db).forEach(k=>delete db[k]);Object.assign(db,d);
-  db.users=db.users||[];db.notes=db.notes||[];db.del=db.del||[];db.acc=db.acc||[];db.promos=db.promos||[];
+  db.users=db.users||[];db.notes=db.notes||[];db.del=db.del||[];db.acc=db.acc||[];db.promos=db.promos||[];db.costs=db.costs||[];db.msgs=db.msgs||[];
   db.set=Object.assign({shop:'TECNO Official Showroom by TECH Hub',addr:'Bazar Road, Beside The One Bank, Sadar Lakshmipur',tel:'',low:3,lock:10,months:3,accs:['BRAC Bank','Tecno Virtual Account','PalmPay','Cash On Hand']},db.set);
   ACCS.length=0;ACCS.push(...db.set.accs);save();cur=null;authS.mode='';toast('Backup restored ✓ Login again');draw();
 }
@@ -446,6 +447,7 @@ async function exportAll(){
   sheet(wb,'Deleted sales',db.del.map(s=>({Date:s.date,Product:s.name,IMEI:s.imei,Total:s.total,Customer:s.cust,Phone:s.phone,'Sold by':s.by||'','Deleted on':s.delDate,'Deleted by':s.delBy})));
   sheet(wb,'Users',db.users.map(u=>({Name:u.name,Role:u.role,Permissions:u.role==='admin'?'All':PERMS.filter(p=>u.perms[p[0]]).map(p=>p[1]).join(', ')})));
   sheet(wb,'Notifications',db.notes.slice().reverse().map(n=>({Time:fmtT(n.ts),Type:n.type,Message:n.msg})));
+  sheet(wb,'Costs',db.costs.map(c=>({Type:c.type,Details:c.title,Amount:c.amt,Repeat:REP[c.rep],Date:c.date})));
   await saveWb(wb,`all-data_${t}.xlsx`);
 }
 
@@ -472,17 +474,127 @@ function onDriveResult(r){
 }
 function onDriveRestore(text){restoreData(text)}
 
-const TILE={sell:['🛒','#4f46e5','Sell'],phones:['📱','#8b5cf6','Mobiles'],acc:['🎧','#ec4899','Accessories'],hist:['🧾','#0ea5e9','Sales'],inst:['💳','#f59e0b','Installments'],accounts:['🏦','#10b981','Accounts'],promos:['🏷️','#ef4444','Promos'],notes:['🔔','#f97316','Notifications'],users:['👥','#6366f1','Users'],settings:['⚙️','#64748b','Settings']};
+const TILE={sell:['🛒','#4f46e5','Sell'],phones:['📱','#8b5cf6','Mobiles'],acc:['🎧','#ec4899','Accessories'],hist:['🧾','#0ea5e9','Sales'],inst:['💳','#f59e0b','Installments'],accounts:['🏦','#10b981','Accounts'],promos:['🏷️','#ef4444','Promos'],notes:['🔔','#f97316','Notifications'],chat:['💬','#06b6d4','Messages'],costs:['💸','#e11d48','Costs'],users:['👥','#6366f1','Users'],settings:['⚙️','#64748b','Settings']};
 function goCheck(){const e=$('ck');if(e){e.scrollIntoView({behavior:'smooth',block:'center'});e.focus()}}
 function homeGrid(){
   const t=today(),inStock=db.phones.filter(p=>p.status==='in').length,todayN=db.sales.filter(s=>s.date===t&&!s.returned).length;
   const due=db.sales.filter(s=>s.pay==='inst'&&!s.returned&&s.total-paidOf(s)>0&&addM(s.date,(s.pays||[]).length+1)<=t).length;
-  const sub={sell:'New sale',phones:inStock+' in stock',acc:db.acc.length+' items',hist:todayN+' today',inst:due?due+' due':'Collect',accounts:'Balances',promos:db.promos.filter(p=>p.on).length+' active',notes:'Alerts',users:db.users.length+' users',settings:'Shop & backup'};
-  const bd={notes:unread(),inst:due};
+  const sub={sell:'New sale',phones:inStock+' in stock',acc:db.acc.length+' items',hist:todayN+' today',inst:due?due+' due':'Collect',accounts:'Balances',promos:db.promos.filter(p=>p.on).length+' active',notes:'Alerts',users:db.users.length+' users',chat:'Team chat',costs:'Rent & bills',settings:'Shop & backup'};
+  const bd={notes:unread(),inst:due,chat:chatUnread()};
   const mk=(ic,c,l,s,click,b)=>`<button class="tile" onclick="${click}"><i style="background:${c}22">${ic}</i><b>${l}</b><small>${s}</small>${b?`<span class="bd">${b}</span>`:''}</button>`;
   const tiles=Object.keys(TILE).filter(k=>tabOk(k)).map(k=>mk(TILE[k][0],TILE[k][1],TILE[k][2],sub[k],`go('${k}')`,bd[k])).join('');
   return `<div class="tiles">${tiles}${mk('🔎','#14b8a6','Check IMEI','In stock?','goCheck()',0)}${canScan()?mk('📷','#0891b2','Scan IMEI','Camera',"scanGo('check')",0):''}</div>`;
 }
+
+const initials=n=>String(n||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const av=(u,s)=>{s=s||36;return u&&u.photo?`<img src="${u.photo}" style="width:${s}px;height:${s}px;border-radius:50%;object-fit:cover;vertical-align:middle">`:`<span style="display:inline-flex;width:${s}px;height:${s}px;border-radius:50%;background:var(--pr);color:var(--pt);align-items:center;justify-content:center;font-weight:700;font-size:${Math.round(s*.4)}px;vertical-align:middle">${esc(initials(u&&u.name))}</span>`};
+let photoT='';
+function pickPhoto(t){
+  if(!cur||(t==='shop'&&cur.role!=='admin')||(t!=='shop'&&cur.role!=='admin'&&cur.id!==t))return toast('Not allowed');
+  photoT=t;
+  if(canPick())Android.pickFile();
+  else{const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=()=>webPick(i);i.click()}
+}
+function setPhoto(b64,name){
+  const ext=String(name).split('.').pop().toLowerCase(),mime=ext==='png'?'image/png':ext==='webp'?'image/webp':ext==='gif'?'image/gif':'image/jpeg';
+  const img=new Image();
+  img.onload=()=>{const c=document.createElement('canvas'),s=160,k=Math.min(img.width,img.height);c.width=c.height=s;c.getContext('2d').drawImage(img,(img.width-k)/2,(img.height-k)/2,k,k,0,0,s,s);applyPhoto(c.toDataURL('image/jpeg',.8))};
+  img.onerror=()=>{photoT='';toast('Could not read this image')};
+  img.src='data:'+mime+';base64,'+b64;
+}
+function applyPhoto(d){
+  const t=photoT;photoT='';
+  if(t==='shop'){if(!cur||cur.role!=='admin')return;db.set.logo=d}
+  else{const u=db.users.find(x=>x.id===t);if(!u||!cur||(cur.role!=='admin'&&cur.id!==u.id))return toast('Not allowed');u.photo=d}
+  save();toast('Photo saved ✓');draw();
+}
+function delPhoto(t){
+  if(!cur)return;
+  if(t==='shop'){if(cur.role!=='admin')return;delete db.set.logo}
+  else{const u=db.users.find(x=>x.id===t);if(!u||(cur.role!=='admin'&&cur.id!==u.id))return;delete u.photo}
+  save();draw();
+}
+V.profile=()=>`<div class="card" style="text-align:center">${av(cur,84)}<h2 style="margin:10px 0 2px">${esc(cur.name)}</h2><small>${cur.role==='admin'?'Admin':'Staff'}${cur.login?' · '+esc(cur.login):''}</small><div class="bar" style="justify-content:center;margin:12px 0 0"><button class="btn o s" onclick="pickPhoto('${cur.id}')">Change photo</button>${cur.photo?`<button class="btn g s" onclick="delPhoto('${cur.id}')">Remove</button>`:''}<button class="btn g s" onclick="lock()">🔒 Lock</button></div></div>
+  <div class="card"><h2>Change my PIN</h2><div class="f"><label>Current PIN<input id="op" type="password" inputmode="numeric" maxlength="8"></label><label>New PIN (4–8 digits)<input id="np" type="password" inputmode="numeric" maxlength="8"></label></div><div style="margin-top:10px"><button class="btn" onclick="ownPin()">Change PIN</button></div></div>`;
+function ownPin(){
+  if(hp(val('op'),cur.salt)!==cur.h)return toast('Current PIN is wrong');
+  const p=val('np');if(!okPin(p))return toast('New PIN must be 4–8 digits');
+  cur.salt=rnd();cur.h=hp(p,cur.salt);save();toast('PIN changed ✓');draw();
+}
+
+let chatW='all';
+const chatKey=m=>m.to==='all'?'all':(m.from===cur.id?m.to:m.from);
+const chatUsers=()=>db.users.filter(u=>u.status!=='pending'&&u.id!==cur.id);
+const chatNew=m=>m.from!==cur.id&&(m.to==='all'||m.to===cur.id)&&m.ts>((cur.rd&&cur.rd[chatKey(m)])||0);
+const chatUnread=()=>cur?db.msgs.filter(chatNew).length:0;
+V.chat=()=>{
+  const us=chatUsers();if(chatW!=='all'&&!us.some(u=>u.id===chatW))chatW='all';
+  const chip=(k,lab,ic)=>{const n=db.msgs.filter(m=>chatNew(m)&&chatKey(m)===k).length;return `<button class="btn ${chatW===k?'':'o'} s" onclick="chatW='${k}';draw()">${ic} ${esc(lab)}${n?` <span class="tag bad">${n}</span>`:''}</button>`};
+  const chips=chip('all','Team','👥')+us.map(u=>chip(u.id,u.name,'')).join('');
+  const L=db.msgs.filter(m=>chatW==='all'?m.to==='all':((m.from===cur.id&&m.to===chatW)||(m.from===chatW&&m.to===cur.id)));
+  const last=L.length?L[L.length-1].ts:0;cur.rd=cur.rd||{};
+  if((cur.rd[chatW]||0)<last){cur.rd[chatW]=Date.now();save()}
+  const bub=m=>{const me=m.from===cur.id,u=db.users.find(x=>x.id===m.from);
+    return `<div style="display:flex;gap:8px;margin:8px 0;${me?'flex-direction:row-reverse':''}">${av(u,30)}<div style="max-width:78%;padding:8px 12px;border-radius:14px;background:${me?'var(--pr)':'var(--bg)'};color:${me?'var(--pt)':'var(--tx)'}"><small style="color:inherit;opacity:.75">${esc(u?u.name:'?')} · ${fmtT(m.ts)}${cur.role==='admin'?` <a href="#" style="color:inherit" onclick="delMsg('${m.id}');return false">✕</a>`:''}</small><div style="white-space:pre-wrap;word-break:break-word">${esc(m.text)}</div></div></div>`};
+  return `<div class="card"><div class="bar" style="margin:0 0 8px;gap:6px">${chips}</div>${L.length?L.map(bub).join(''):empty('No messages yet. Say hello 👋')}
+  <div style="display:flex;gap:6px;margin-top:10px"><input id="cm" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendMsg()"><button class="btn" onclick="sendMsg()">Send</button></div>
+  <small style="display:block;margin-top:8px">Messages reach people using this same app data. To chat between different phones, the cloud sync step is needed.</small></div>`;
+};
+function sendMsg(){
+  const t=val('cm').trim();if(!t||!cur)return;
+  db.msgs.push({id:uid(),ts:Date.now(),from:cur.id,to:chatW,text:t.slice(0,1000)});
+  if(db.msgs.length>500)db.msgs.splice(0,db.msgs.length-500);
+  save();draw();try{scrollTo(0,document.body.scrollHeight)}catch(e){}
+}
+function delMsg(id){if(!cur||cur.role!=='admin')return;db.msgs=db.msgs.filter(m=>m.id!==id);save();draw()}
+
+const CT=['Shop rent','Electricity bill','Internet bill','Staff salary','Asset / equipment','Daily cost','Other'];
+let cm=today().slice(0,7);
+function monthCosts(ym){
+  const [Y,Mo]=ym.split('-').map(Number),dim=new Date(Y,Mo,0).getDate(),first=ym+'-01',last=ym+'-'+String(dim).padStart(2,'0');
+  let fixed=0,daily=0,once=0;
+  db.costs.forEach(c=>{
+    if(c.rep==='month'){if(c.date<=last)fixed+=c.amt}
+    else if(c.rep==='day'){if(c.date<=last){const from=c.date>first?+c.date.slice(8):1;daily+=c.amt*(dim-from+1)}}
+    else if(c.date>=first&&c.date<=last)once+=c.amt;
+  });
+  return{fixed,daily,once,total:fixed+daily+once,dim};
+}
+function monthProfit(ym){
+  let rev=0,cogs=0,n=0;
+  db.sales.filter(s=>!s.returned&&s.date.startsWith(ym)).forEach(s=>{
+    n++;rev+=s.total;
+    if(s.kind==='phone'){const p=db.phones.find(x=>x.imei===s.imei);cogs+=p?p.cost:0}
+    else{const a=db.acc.find(x=>x.name.toLowerCase()===s.name.toLowerCase());cogs+=a?a.cost*s.qty:0}
+  });
+  return{rev,cogs,gross:rev-cogs,n};
+}
+const REP={month:'Every month',day:'Every day',once:'One time'};
+V.costs=()=>{
+  const c=monthCosts(cm),p=monthProfit(cm),net=p.gross-c.total;
+  const row=(a,b,cls)=>`<div class="row"><span>${a}</span><b class="${cls||''}">${b}</b></div>`;
+  const L=db.costs.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return `<div class="card"><div class="bar" style="margin:0 0 8px"><label>Month<input type="month" value="${cm}" onchange="cm=this.value||cm;draw()"></label></div><h2>Profit summary</h2>
+  ${row('Sales ('+p.n+')',M(p.rev))}${row('Cost of goods sold',M(p.cogs))}${row('Gross profit',M(p.gross),p.gross<0?'bad':'ok')}${row('Fixed monthly costs',M(c.fixed))}${row('Daily costs',M(c.daily))}${row('One-time / assets',M(c.once))}${row('Total costs',M(c.total))}${row('Net profit',M(net),net<0?'bad':'ok')}${row('Average cost per day',M(c.total/c.dim))}
+  <small>Sales value includes installment balances not collected yet. Goods cost uses the purchase prices saved in stock.</small></div>
+  <div class="card"><h2>Add cost</h2><div class="f">
+  <label>Type<select id="ct">${CT.map(t=>`<option>${t}</option>`).join('')}</select></label>
+  <label>Details (optional)<input id="cn" placeholder="e.g. Dec bill"></label>
+  <label>Amount (৳)<input id="ca" type="number" min="1"></label>
+  <label>Repeat<select id="cr"><option value="month">Every month</option><option value="day">Every day</option><option value="once">One time</option></select></label>
+  <label>Date / starts on<input id="cd" type="date" value="${today()}"></label>
+  <label>Deduct from account now<select id="cb"><option value="">Don’t record</option>${accOpts('')}</select></label></div>
+  <div style="margin-top:10px"><button class="btn" onclick="addCost()">Add cost</button></div></div>
+  <div class="card"><h2>All costs</h2>${L.length?L.map(x=>`<div class="row"><div><b>${esc(x.type)}${x.title?' · '+esc(x.title):''}</b><small>${REP[x.rep]} · ${x.date}</small></div><div class="r"><b>${M(x.amt)}</b> <button class="btn g s" onclick="delCost('${x.id}')">✕</button></div></div>`).join(''):empty('No costs added yet')}</div>`;
+};
+function addCost(){
+  if(!can('costs'))return toast('Not allowed');
+  const amt=+val('ca');if(!(amt>0))return toast('Enter an amount');
+  const c={id:uid(),type:val('ct'),title:val('cn').trim(),amt,rep:val('cr'),date:val('cd')||today()};
+  db.costs.push(c);const a=val('cb');if(a)txn(a,'out',amt,'Cost: '+c.type+(c.title?' '+c.title:''),'cost');
+  save();toast('Cost added ✓');draw();
+}
+function delCost(id){if(!can('costs'))return toast('Not allowed');db.costs=db.costs.filter(x=>x.id!==id);save();draw()}
 
 let hd=today(),act=null;
 V.hist=()=>{
