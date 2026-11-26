@@ -50,9 +50,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offs
 const ACCS=['BRAC Bank','Tecno Virtual Account','PalmPay','Cash On Hand'];
 const K='mobshop_v1';
 let db={phones:[],acc:[],promos:[],sales:[],txns:[]};
-try{const s=localStorage.getItem(K);if(s)db=Object.assign(db,JSON.parse(s))}catch(e){}
+try{let s=localStorage.getItem(K);if(!s&&window.Android&&typeof Android.loadData==='function')s=Android.loadData();if(s)db=Object.assign(db,JSON.parse(s))}catch(e){}
 db.set=Object.assign({shop:'TECNO Official Showroom by TECH Hub',addr:'Bazar Road, Beside The One Bank, Sadar Lakshmipur',tel:'',low:3,lock:10,months:3,accs:[...ACCS]},db.set);db.del=db.del||[];db.notes=db.notes||[];ACCS.length=0;ACCS.push(...db.set.accs);
-const save=()=>{try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}if(typeof driveSoon==='function')driveSoon()};
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(db))}catch(e){}try{if(window.Android&&typeof Android.persist==='function')Android.persist(JSON.stringify(db))}catch(e){}if(typeof driveSoon==='function')driveSoon()};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const pad=n=>String(n).padStart(2,'0');
 const fmt=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -194,23 +194,41 @@ function newRecCode(){const rc=String(Math.floor(1e7+Math.random()*9e7)),salt=rn
 ['click','touchstart','keydown'].forEach(e=>addEventListener(e,()=>{idle=Date.now()},true));
 setInterval(()=>{if(cur&&Date.now()-idle>(db.set.lock||10)*60000){lock();toast('Locked (idle)')}},30000);
 function lock(){cur=null;authS.mode='';draw()}
+const normLogin=s=>{s=String(s||'').trim().toLowerCase();if(s.includes('@'))return s;let d=s.replace(/[^\d]/g,'');if(d.startsWith('880')&&d.length===13)d='0'+d.slice(3);return /^\d{8,15}$/.test(d)?d:s};
+const validLogin=s=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)||/^\d{8,15}$/.test(s);
+const findUser=v=>{const k=normLogin(v),n=String(v).trim().toLowerCase();return db.users.find(u=>(u.login&&u.login===k)||u.name.toLowerCase()===n)};
 function authView(){
-  const box=b=>`<div class="card" style="max-width:420px;margin:30px auto"><h2>🔐 ${b}`;
+  const box=b=>`<div class="card" style="max-width:420px;margin:30px auto"><h2>🔐 ${b}`,f='<div class="f" style="grid-template-columns:1fr">';
   if(authS.mode==='showrec')return box('Save your recovery code')+`</h2><div class="v" style="text-align:center;letter-spacing:4px;margin:10px 0">${authS.rc}</div><small>Write this code down and keep it safe. It is the only way to reset the admin PIN if you forget it. It is shown only once.</small><div style="margin-top:12px"><button class="btn" onclick="authS.mode='';authS.rc='';draw()">I saved it</button></div></div>`;
-  if(!db.users.length)return box('Create admin account')+`</h2><div class="f" style="grid-template-columns:1fr"><label>Owner name<input id="an1" value="Admin"></label><label>PIN (4–8 digits)<input id="ap1" type="password" inputmode="numeric" maxlength="8"></label><label>Confirm PIN<input id="ap2" type="password" inputmode="numeric" maxlength="8"></label></div><div style="margin-top:12px"><button class="btn" onclick="setupAdmin()">Create admin</button></div></div>`;
-  if(authS.mode==='rec')return box('Reset admin PIN')+`</h2><div class="f" style="grid-template-columns:1fr"><label>Recovery code<input id="rc1" inputmode="numeric"></label><label>New PIN (4–8 digits)<input id="rp1" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="recoverPin()">Reset PIN</button><button class="btn o" onclick="authS.mode='';draw()">Back</button></div></div>`;
-  return box('Login')+`</h2><div class="f" style="grid-template-columns:1fr"><label>User<select id="lu">${opts(db.users.map(u=>[u.id,u.name+(u.role==='admin'?' (admin)':'')]),'')}</select></label><label>PIN<input id="lp" type="password" inputmode="numeric" maxlength="8" onkeydown="if(event.key==='Enter')doLogin()"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="doLogin()">Login</button><button class="btn o" onclick="authS.mode='rec';draw()">Forgot admin PIN?</button></div></div>`;
+  if(!db.users.length)return box('Create admin account')+`</h2>${f}<label>Owner name<input id="an1" value="Admin"></label><label>Phone number or Gmail (used to login)<input id="al1" placeholder="01XXXXXXXXX or you@gmail.com"></label><label>PIN (4–8 digits)<input id="ap1" type="password" inputmode="numeric" maxlength="8"></label><label>Confirm PIN<input id="ap2" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="setupAdmin()">Create admin</button>${canDrive()?`<button class="btn o" onclick="driveRestore()">Restore from Google Drive</button>`:''}</div>${canPick()?`<small style="display:block;margin-top:10px">Already have a backup file? <a href="#" onclick="Android.pickFile();return false">Choose file</a></small>`:''}</div>`;
+  if(authS.mode==='rec')return box('Reset admin PIN')+`</h2>${f}<label>Recovery code<input id="rc1" inputmode="numeric"></label><label>New PIN (4–8 digits)<input id="rp1" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="recoverPin()">Reset PIN</button><button class="btn o" onclick="authS.mode='';draw()">Back</button></div></div>`;
+  if(authS.mode==='signup')return box('Create account')+`</h2>${f}<label>Your name<input id="sn1"></label><label>Phone number or Gmail (used to login)<input id="sl1" placeholder="01XXXXXXXXX or you@gmail.com"></label><label>PIN (4–8 digits)<input id="sp1" type="password" inputmode="numeric" maxlength="8"></label><label>Confirm PIN<input id="sp2" type="password" inputmode="numeric" maxlength="8"></label></div><small style="display:block;margin-top:8px">The admin must approve your account before you can use the app.</small><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="createAccount()">Create account</button><button class="btn o" onclick="authS.mode='';draw()">Back to login</button></div></div>`;
+  return box('Login')+`</h2>${f}<label>Phone number, Gmail or name<input id="lu" autocomplete="username" value="${esc(authS.last||'')}" placeholder="01XXXXXXXXX or you@gmail.com"></label><label>PIN<input id="lp" type="password" inputmode="numeric" maxlength="8" onkeydown="if(event.key==='Enter')doLogin()"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="doLogin()">Login</button><button class="btn o" onclick="authS.mode='signup';draw()">Create account</button></div><div style="margin-top:10px"><a href="#" style="font-size:13px" onclick="authS.mode='rec';draw();return false">Forgot admin PIN?</a></div></div>`;
 }
 function setupAdmin(){
-  const n=val('an1').trim(),p=val('ap1');
-  if(!n)return toast('Enter a name');if(!okPin(p))return toast('PIN must be 4–8 digits');if(p!==val('ap2'))return toast('PINs do not match');
-  db.users.push(mkUser(n,p,'admin'));authS.rc=newRecCode();authS.mode='showrec';save();draw();
+  const n=val('an1').trim(),l=normLogin(val('al1')),p=val('ap1');
+  if(!n)return toast('Enter a name');if(!validLogin(l))return toast('Enter a valid phone number or Gmail');
+  if(!okPin(p))return toast('PIN must be 4–8 digits');if(p!==val('ap2'))return toast('PINs do not match');
+  const u=mkUser(n,p,'admin');u.login=l;db.users.push(u);authS.rc=newRecCode();authS.mode='showrec';save();draw();
+}
+function createAccount(){
+  const n=val('sn1').trim(),l=normLogin(val('sl1')),p=val('sp1');
+  if(!n)return toast('Enter your name');if(!validLogin(l))return toast('Enter a valid phone number or Gmail');
+  if(!okPin(p))return toast('PIN must be 4–8 digits');if(p!==val('sp2'))return toast('PINs do not match');
+  if(db.users.some(u=>u.login===l||u.name.toLowerCase()===n.toLowerCase()))return toast('This phone/Gmail or name is already used');
+  const u=mkUser(n,p,'staff',{});u.login=l;u.status='pending';db.users.push(u);
+  notify('security','New account request: '+n+' ('+l+')','admin');save();authS.mode='';authS.last=l;toast('Account created. Wait for the admin to approve it.');draw();
 }
 function doLogin(){
   if(Date.now()<authS.until)return toast('Too many tries. Wait '+Math.ceil((authS.until-Date.now())/1000)+'s');
-  const u=db.users.find(x=>x.id===val('lu'));
-  if(u&&hp(val('lp'),u.salt)===u.h){cur=u;view='dash';authS.tries=0;idle=Date.now();if(u.role!=='admin')notify('login',u.name+' logged in','admin');checkDue();draw()}
-  else{if(++authS.tries>=5){authS.until=Date.now()+30000;authS.tries=0;notify('security','5 wrong PIN attempts for '+(u?u.name:'unknown user'),'admin');save()}toast('Wrong PIN');const e=$('lp');if(e)e.value=''}
+  const id=val('lu'),u=findUser(id);authS.last=id;
+  if(u&&hp(val('lp'),u.salt)===u.h){
+    if(u.status==='pending'){const e=$('lp');if(e)e.value='';return toast('Your account is waiting for admin approval')}
+    cur=u;view='dash';authS.tries=0;idle=Date.now();if(u.role!=='admin')notify('login',u.name+' logged in','admin');checkDue();draw();
+  }else{
+    if(++authS.tries>=5){authS.until=Date.now()+30000;authS.tries=0;notify('security','5 wrong PIN attempts for '+(u?u.name:'unknown user'),'admin');save()}
+    toast('Wrong phone/Gmail or PIN');const e=$('lp');if(e)e.value='';
+  }
 }
 function recoverPin(){
   const a=db.users.find(u=>u.role==='admin'),p=val('rp1');
@@ -219,25 +237,36 @@ function recoverPin(){
   if(!okPin(p))return toast('PIN must be 4–8 digits');
   a.salt=rnd();a.h=hp(p,a.salt);save();authS.mode='';toast('PIN reset. Login now');draw();
 }
-V.users=()=>`${recShow?`<div class="card" style="border-color:var(--pr)"><h2>New recovery code</h2><div class="v" style="letter-spacing:4px">${recShow}</div><small>Write it down. Old code no longer works.</small><div style="margin-top:10px"><button class="btn o s" onclick="recShow='';draw()">Hide</button></div></div>`:''}
-  <div class="card"><h2>Add staff</h2><div class="f"><label>Name<input id="un"></label><label>PIN (4–8 digits)<input id="up" type="password" inputmode="numeric" maxlength="8"></label></div><div style="margin-top:10px"><button class="btn" onclick="addUser()">Add staff</button></div></div>
-  ${db.users.map(u=>u.role==='admin'?`<div class="card"><div class="row" style="border:0;padding:0"><b>${esc(u.name)}</b><span class="tag ok">Admin · full access</span></div></div>`
-  :`<div class="card"><div class="row" style="border:0;padding:0 0 8px"><b>${esc(u.name)}</b><span class="tag">Staff</span></div>
+V.users=()=>{
+  const pend=db.users.filter(u=>u.status==='pending'),act=db.users.filter(u=>u.status!=='pending');
+  return `${recShow?`<div class="card" style="border-color:var(--pr)"><h2>New recovery code</h2><div class="v" style="letter-spacing:4px">${recShow}</div><small>Write it down. Old code no longer works.</small><div style="margin-top:10px"><button class="btn o s" onclick="recShow='';draw()">Hide</button></div></div>`:''}
+  ${pend.length?`<div class="card" style="border-color:var(--warn)"><h2>Waiting for approval (${pend.length})</h2>${pend.map(u=>`<div class="row"><div><b>${esc(u.name)}</b><small>${esc(u.login||'')}</small></div><div class="r"><button class="btn s" onclick="approveUser('${u.id}')">Approve</button> <button class="btn g s" onclick="rejectUser('${u.id}')">Reject</button></div></div>`).join('')}</div>`:''}
+  <div class="card"><h2>Add staff</h2><div class="f"><label>Name<input id="un"></label><label>Phone or Gmail (login)<input id="ul" placeholder="01XXXXXXXXX or name@gmail.com"></label><label>PIN (4–8 digits)<input id="up" type="password" inputmode="numeric" maxlength="8"></label></div><div style="margin-top:10px"><button class="btn" onclick="addUser()">Add staff</button></div></div>
+  ${act.map(u=>u.role==='admin'?`<div class="card"><div class="row" style="border:0;padding:0"><div><b>${esc(u.name)}</b><small>${esc(u.login||'no phone/Gmail set')}</small></div><span class="tag ok">Admin · full access</span></div></div>`
+  :`<div class="card"><div class="row" style="border:0;padding:0 0 8px"><div><b>${esc(u.name)}</b><small>${esc(u.login||'')}</small></div><span class="tag">Staff</span></div>
   <small>Always allowed: check IMEI, view stock, view dashboard sold items.</small>
   <div style="display:grid;gap:8px;margin:10px 0">${PERMS.map(p=>`<label style="display:flex;gap:8px;align-items:center;font-weight:500;color:var(--tx);font-size:14px"><input type="checkbox" style="width:auto" ${u.perms[p[0]]?'checked':''} onchange="setPerm('${u.id}','${p[0]}',this.checked)">${p[1]}</label>`).join('')}</div>
   <div class="bar" style="margin:0"><label>New PIN<input id="rp${u.id}" type="password" inputmode="numeric" maxlength="8"></label><button class="btn o s" onclick="resetPin('${u.id}')">Reset PIN</button><button class="btn g s" onclick="delUser('${u.id}')">Delete</button></div></div>`).join('')}
-  <div class="card"><h2>My security</h2><div class="f"><label>New admin PIN<input id="mp" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="myPin()">Change my PIN</button><button class="btn o" onclick="recShow=newRecCode();draw()">New recovery code</button></div></div>`;
+  <div class="card"><h2>My security</h2><div class="f"><label>My login (phone or Gmail)<input id="ml" value="${esc(cur.login||'')}"></label><label>New admin PIN<input id="mp" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="myPin()">Save login / PIN</button><button class="btn o" onclick="recShow=newRecCode();draw()">New recovery code</button></div></div>`;
+};
 function addUser(){
-  if(!can('users')&&!(cur&&cur.role==='admin'))return;
-  const n=val('un').trim(),p=val('up');
-  if(!n)return toast('Enter a name');if(!okPin(p))return toast('PIN must be 4–8 digits');
-  if(db.users.some(u=>u.name.toLowerCase()===n.toLowerCase()))return toast('Name already used');
-  db.users.push(mkUser(n,p,'staff',{sell:true}));save();toast('Staff added ✓');draw();
+  if(!cur||cur.role!=='admin')return;
+  const n=val('un').trim(),l=normLogin(val('ul')),p=val('up');
+  if(!n)return toast('Enter a name');if(!validLogin(l))return toast('Enter a valid phone number or Gmail');if(!okPin(p))return toast('PIN must be 4–8 digits');
+  if(db.users.some(u=>u.login===l||u.name.toLowerCase()===n.toLowerCase()))return toast('Name or phone/Gmail already used');
+  const u=mkUser(n,p,'staff',{sell:true});u.login=l;db.users.push(u);save();toast('Staff added ✓');draw();
 }
+function approveUser(id){if(!cur||cur.role!=='admin')return;const u=db.users.find(x=>x.id===id);if(!u)return;u.status='active';u.perms={sell:true};save();toast('Approved ✓');draw()}
+function rejectUser(id){if(!cur||cur.role!=='admin')return;db.users=db.users.filter(u=>u.id!==id);save();draw()}
 function setPerm(id,k,v){if(cur.role!=='admin')return;db.users.find(u=>u.id===id).perms[k]=v;save()}
 function resetPin(id){const p=val('rp'+id);if(cur.role!=='admin')return;if(!okPin(p))return toast('PIN must be 4–8 digits');const u=db.users.find(x=>x.id===id);u.salt=rnd();u.h=hp(p,u.salt);save();toast('PIN changed ✓');draw()}
 function delUser(id){if(cur.role!=='admin'||!confirm('Delete this staff account?'))return;db.users=db.users.filter(u=>u.id!==id);save();draw()}
-function myPin(){const p=val('mp');if(!okPin(p))return toast('PIN must be 4–8 digits');cur.salt=rnd();cur.h=hp(p,cur.salt);save();toast('PIN changed ✓');draw()}
+function myPin(){
+  const l=normLogin(val('ml')),p=val('mp');
+  if(val('ml').trim()){if(!validLogin(l))return toast('Enter a valid phone number or Gmail');if(db.users.some(u=>u!==cur&&u.login===l))return toast('This login is used by another user');cur.login=l}
+  if(p){if(!okPin(p))return toast('PIN must be 4–8 digits');cur.salt=rnd();cur.h=hp(p,cur.salt)}
+  save();toast('Saved ✓');draw();
+}
 function dateTxt(){$('dt').textContent=new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',year:'numeric'})}
 
 const sheet=(wb,n,d)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(d.length?d:[{}]),n);
@@ -369,7 +398,7 @@ function onFilePicked(name,b64){
 }
 function webPick(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const u=new Uint8Array(r.result);let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));onFilePicked(f.name,btoa(s))};r.readAsArrayBuffer(f)}
 function restoreData(txt){
-  if(!cur||cur.role!=='admin')return toast('Admin only');
+  if(db.users.length&&(!cur||cur.role!=='admin'))return toast('Admin only');
   let d;try{d=JSON.parse(txt)}catch(e){return toast('Not a valid backup file')}
   if(!d||!Array.isArray(d.phones)||!Array.isArray(d.sales)||!Array.isArray(d.txns))return toast('Not a TECNO backup file');
   if(!confirm('Replace ALL current data with this backup ('+d.phones.length+' phones, '+d.sales.length+' sales)?'))return;
@@ -426,12 +455,12 @@ const dStatus=()=>dm.on?`<b class="ok">Connected</b><br><small>Last auto backup:
 const dRender=()=>{const e=$('dstat');if(e)e.innerHTML=dStatus()};
 function driveSoon(){if(!dm.on||!canDrive())return;clearTimeout(dT);dT=setTimeout(driveNow,15000)}
 function driveFlush(){if(dT){clearTimeout(dT);dT=null;driveNow()}}
-function driveNow(){if(!dm.on||!canDrive()||dBusy)return;dT=null;dBusy=true;try{Android.driveUpload('tecno-backup.json',JSON.stringify(db))}catch(e){dBusy=false}}
+function driveNow(){if(!dm.on||!canDrive()||dBusy)return;if(!db.phones.length&&!db.sales.length&&!db.txns.length&&!db.acc.length)return;dT=null;dBusy=true;try{Android.driveUpload('tecno-backup.json',JSON.stringify(db))}catch(e){dBusy=false}}
 function driveManual(){if(!canDrive())return toast('Works in the Android app');dManual=true;clearTimeout(dT);dT=null;toast('Uploading to Drive…');driveNow()}
 function driveConnect(){if(!canDrive())return toast('Works in the Android app');Android.driveConnect()}
 function driveRestore(){if(!canDrive())return toast('Works in the Android app');toast('Looking for backup in Drive…');Android.driveRestore('tecno-backup.json')}
 function driveOff(){dm.on=false;saveDm();draw()}
-function onDriveConnected(){dm.on=true;dm.err='';saveDm();toast('Google Drive connected ✓');dManual=true;driveNow();draw()}
+function onDriveConnected(){dm.on=true;dm.err='';saveDm();toast('Google Drive connected ✓');if(!db.phones.length&&!db.sales.length&&!db.txns.length&&!db.acc.length){driveRestore()}else{dManual=true;driveNow()}draw()}
 function onDriveFail(m){dBusy=false;toast('Drive: '+m)}
 function onDriveResult(r){
   dBusy=false;
