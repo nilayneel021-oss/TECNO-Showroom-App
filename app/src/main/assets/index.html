@@ -85,7 +85,7 @@ V.dash=()=>{
   const due=db.sales.filter(s=>s.pay==='inst'&&!s.returned).reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0);
   return `${can('accounts')?`<div class="card hero"><div class="k">${dd===today()?'Today':esc(dd)} · Sales</div><div class="v" style="font-size:32px">${M(tot)}</div><div style="opacity:.9">${S.length} sale(s) · collected ${M(col)}</div></div>`:''}
   ${homeGrid()}
-  ${noteCard()}${ckCard()}
+  ${noteCard()}${ckCard()}${stockValCard()}
   <div class="grid" style="margin-bottom:12px">
    ${can('accounts')?ACCS.map(a=>`<div class="card"><div class="k">${a}</div><div class="v ${bal(a)<0?'bad':''}">${M(bal(a))}</div></div>`).join(''):''}
    <div class="card"><div class="k">Phones in stock</div><div class="v">${stock}</div></div>
@@ -316,6 +316,8 @@ V.settings=()=>`<div class="card"><h2>Shop details</h2><div class="bar" style="m
   <div class="card"><h2>Accounts</h2>${ACCS.map((a,i)=>`<div class="bar" style="margin:0 0 8px"><label>Account ${i+1}<input id="ra${i}" value="${esc(a)}"></label><button class="btn o s" onclick="renAcc(${i})">Rename</button><button class="btn g s" onclick="delAccount(${i})">✕</button></div>`).join('')}<div class="bar" style="margin:8px 0 0"><label>New account<input id="na" placeholder="e.g. bKash"></label><button class="btn s" onclick="addAccount()">Add</button></div><small>An account can be removed only if it has no records.</small></div>
   <div class="card"><h2>Google Drive auto backup</h2><div id="dstat">${dStatus()}</div><small>After connecting, every change is saved to your Google Drive automatically (about 15 seconds later and when the app closes). Needs internet. ${canDrive()?'':'Works only in the Android app.'}</small><div class="bar" style="margin:10px 0 0">${dm.on?`<button class="btn" onclick="driveManual()">Backup to Drive now</button><button class="btn o" onclick="driveRestore()">Restore from Drive</button><button class="btn g" onclick="driveOff()">Disconnect</button>`:`<button class="btn" onclick="driveConnect()">Connect Google Drive</button>`}</div></div>
   <div class="card"><h2>☁️ Backup & Restore</h2><small>Last backup: ${db.set.lastBackup?fmtT(db.set.lastBackup):'never'}. A backup saves everything in one file (${db.phones.length} phones, ${db.acc.length} accessories, ${db.sales.length} sales, ${db.txns.length} transactions, ${db.promos.length} promos, ${db.users.length} users, ${db.notes.length} notifications). After it is created, choose Google Drive or Gmail from the share menu.</small><div class="bar" style="margin:10px 0 0"><button class="btn" onclick="doBackup()">Backup now</button><button class="btn o" onclick="exportAll()">Export ALL data (Excel)</button>${canPick()?`<button class="btn o" onclick="Android.pickFile()">Restore / import file</button>`:`<label>Restore / import file<input type="file" accept=".json,.xlsx" onchange="webPick(this)"></label>`}</div></div>
+  ${permCard()}
+  ${resetCard()}
   <div class="card"><h2>Data on this device</h2><small>${db.phones.length} phones · ${db.sales.length} sales · ${db.txns.length} transactions · ${db.users.length} users. Data is stored on this device only, so export regularly from Sales, Mobiles and Accounts.</small></div>`;
 function saveSet(){
   if(cur.role!=='admin')return;
@@ -432,7 +434,7 @@ async function exportAll(){
   sheet(wb,'Summary',[...ACCS.map(a=>({Item:'Balance: '+a,Value:bal(a)})),
     {Item:'Phones in stock',Value:db.phones.filter(p=>p.status==='in').length},{Item:'Phones sold',Value:db.phones.filter(p=>p.status!=='in').length},
     {Item:'Total sales (not returned)',Value:db.sales.filter(s=>!s.returned).length},{Item:'Sales value (not returned)',Value:db.sales.filter(s=>!s.returned).reduce((a,s)=>a+s.total,0)},
-    {Item:'Installment due',Value:open.reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0)},{Item:'Exported on',Value:t}]);
+    {Item:'Installment due',Value:open.reduce((a,s)=>a+Math.max(0,s.total-paidOf(s)),0)},{Item:'Stock value (purchase price)',Value:stockVal().pc+stockVal().ac},{Item:'Stock value (selling price)',Value:stockVal().pr+stockVal().ar},{Item:'Exported on',Value:t}]);
   sheet(wb,'By model',models().map(m=>{const n=m.list.filter(p=>p.status==='in').length;return{Model:m.name,'In stock':n,Sold:m.list.length-n,Total:m.list.length}}));
   sheet(wb,'Mobiles',db.phones.map(p=>{const s=soldTo(p);return{Model:p.brand+' '+p.model,IMEI:p.imei,Price:p.price,Cost:p.cost,Supplier:p.supplier,Added:p.date,Status:p.status==='in'?'In stock':'Sold','Sold to':p.status==='in'||!s?'':s.cust,'Sold phone':p.status==='in'||!s?'':s.phone,'Sold on':p.status==='in'||!s?'':s.date}}));
   sheet(wb,'Accessories',db.acc.map(a=>({Name:a.name,Qty:a.qty,Price:a.price,Cost:a.cost})));
@@ -492,7 +494,8 @@ let photoT='';
 function pickPhoto(t){
   if(!cur||(t==='shop'&&cur.role!=='admin')||(t!=='shop'&&cur.role!=='admin'&&cur.id!==t))return toast('Not allowed');
   photoT=t;
-  if(canPick())Android.pickFile();
+  if(window.Android&&typeof Android.pickImage==='function')Android.pickImage();
+  else if(canPick())Android.pickFile();
   else{const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=()=>webPick(i);i.click()}
 }
 function setPhoto(b64,name){
@@ -502,6 +505,8 @@ function setPhoto(b64,name){
   img.onerror=()=>{photoT='';toast('Could not read this image')};
   img.src='data:'+mime+';base64,'+b64;
 }
+function onPhotoPicked(b64){if(!photoT)return;setPhoto(b64,'p.jpg')}
+function onPhotoFail(){photoT='';toast('Could not read the photo')}
 function applyPhoto(d){
   const t=photoT;photoT='';
   if(t==='shop'){if(!cur||cur.role!=='admin')return;db.set.logo=d}
@@ -595,6 +600,44 @@ function addCost(){
   save();toast('Cost added ✓');draw();
 }
 function delCost(id){if(!can('costs'))return toast('Not allowed');db.costs=db.costs.filter(x=>x.id!==id);save();draw()}
+
+function stockVal(){
+  const ph=db.phones.filter(p=>p.status==='in');
+  return{pn:ph.length,pc:ph.reduce((a,p)=>a+p.cost,0),pr:ph.reduce((a,p)=>a+p.price,0),an:db.acc.reduce((a,x)=>a+x.qty,0),ac:db.acc.reduce((a,x)=>a+x.cost*x.qty,0),ar:db.acc.reduce((a,x)=>a+x.price*x.qty,0)};
+}
+function stockValCard(){
+  if(!can('cost'))return '';
+  const v=stockVal(),cost=v.pc+v.ac,sell=v.pr+v.ar;
+  return `<div class="card"><h2>📦 Stock value</h2><div class="grid"><div><div class="k">At purchase price</div><div class="v">${M(cost)}</div></div><div><div class="k">At selling price</div><div class="v">${M(sell)}</div></div><div><div class="k">Expected profit</div><div class="v ${sell-cost<0?'bad':'ok'}">${M(sell-cost)}</div></div></div>
+  <div class="row"><span>📱 Phones in stock (${v.pn})</span><b>${M(v.pc)}</b></div><div class="row"><span>🎧 Accessories (${v.an} pcs)</span><b>${M(v.ac)}</b></div></div>`;
+}
+let rst='';
+const defSet=()=>({shop:'TECNO Official Showroom by TECH Hub',addr:'Bazar Road, Beside The One Bank, Sadar Lakshmipur',tel:'',low:3,lock:10,months:3,accs:['BRAC Bank','Tecno Virtual Account','PalmPay','Cash On Hand']});
+function resetCard(){
+  return `<div class="card" style="border-color:var(--bad)"><h2>⚠️ Reset app data</h2><small>Last backup: ${db.set.lastBackup?fmtT(db.set.lastBackup):'never'}. Take a backup first if you may need this data again.</small>
+  <div class="bar" style="margin:10px 0 0"><button class="btn g" onclick="rst='data';draw()">Clear business data</button><button class="btn g" onclick="rst='all';draw()">Factory reset</button></div>
+  ${rst?`<div style="margin-top:12px"><small>${rst==='data'?'Deletes stock, sales, account entries, costs, messages and notifications. Users and settings stay.':'Deletes EVERYTHING, including users and settings. The app goes back to first-time setup.'} This cannot be undone. Your Google Drive backup is not deleted.</small><div class="f" style="margin-top:8px"><label>Type RESET<input id="rt"></label><label>Your PIN<input id="rpn" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:10px 0 0"><button class="btn" style="background:var(--bad);color:#fff" onclick="doReset()">Confirm reset</button><button class="btn o" onclick="rst='';draw()">Cancel</button></div></div>`:''}</div>`;
+}
+function doReset(){
+  if(!cur||cur.role!=='admin')return toast('Admin only');
+  if(val('rt').trim()!=='RESET')return toast('Type RESET to confirm');
+  if(hp(val('rpn'),cur.salt)!==cur.h)return toast('Wrong PIN');
+  const all=rst==='all';
+  ['phones','acc','promos','sales','txns','del','notes','costs','msgs'].forEach(k=>{db[k]=[]});
+  if(all){db.users=[];delete db.rec;db.set=defSet();ACCS.length=0;ACCS.push(...db.set.accs);cur=null;authS.mode=''}
+  rst='';save();toast(all?'App reset. Set up again':'Business data cleared');draw();
+}
+
+const canPerm=()=>!!(window.Android&&typeof Android.permStatus==='function');
+const PM=[['gallery','🖼️','Gallery / Photos','Choose profile and shop photos'],['camera','📷','Camera','Scan IMEI barcodes'],['location','📍','Location','Needed for location features'],['notifications','🔔','Notifications','Show alerts on your phone']];
+function permHtml(){
+  if(!canPerm())return '<small>Device permissions can be managed in the Android app only.</small>';
+  let st={};try{st=JSON.parse(Android.permStatus())}catch(e){}
+  return PM.map(p=>`<div class="row"><div><b>${p[1]} ${p[2]}</b><small>${p[3]}</small></div><div class="r">${st[p[0]]?'<span class="tag ok">Allowed</span>':`<button class="btn s" onclick="Android.askPerm('${p[0]}')">Allow</button>`}</div></div>`).join('')+`<div class="bar" style="margin:10px 0 0"><button class="btn o s" onclick="Android.openAppSettings()">Open phone app settings</button></div>`;
+}
+function permCard(){return `<div class="card"><h2>📲 Device permissions</h2><div id="perms">${permHtml()}</div></div>`}
+function permRefresh(){const e=$('perms');if(e)e.innerHTML=permHtml()}
+function onPermResult(){permRefresh()}
 
 let hd=today(),act=null;
 V.hist=()=>{
