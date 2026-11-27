@@ -3,6 +3,9 @@ package com.techhub.tecnoshowroom
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
@@ -114,6 +117,66 @@ class MainActivity : Activity() {
         return httpCall("GET", "https://www.googleapis.com/drive/v3/files/" + ids[0] + "?alt=media", tok, null, null)
     }
 
+    private fun imageToBase64(uri: Uri): String {
+        val opts = BitmapFactory.Options()
+        opts.inJustDecodeBounds = true
+        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+        var sample = 1
+        while (opts.outWidth / sample > 1000 || opts.outHeight / sample > 1000) sample *= 2
+        val o2 = BitmapFactory.Options()
+        o2.inSampleSize = sample
+        var bmp: Bitmap = contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, o2) }
+            ?: throw Exception("decode failed")
+        if (Build.VERSION.SDK_INT >= 24) {
+            try {
+                var deg = 0f
+                contentResolver.openInputStream(uri)?.use {
+                    val o = android.media.ExifInterface(it).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 1)
+                    if (o == 6) deg = 90f
+                    if (o == 3) deg = 180f
+                    if (o == 8) deg = 270f
+                }
+                if (deg != 0f) {
+                    val m = Matrix()
+                    m.postRotate(deg)
+                    bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+                }
+            } catch (e: Exception) { }
+        }
+        val bos = java.io.ByteArrayOutputStream()
+        bmp.compress(Bitmap.CompressFormat.JPEG, 80, bos)
+        return Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
+    }
+
+    private fun permList(name: String): Array<String> {
+        if (name == "gallery") {
+            return if (Build.VERSION.SDK_INT >= 33) arrayOf(android.Manifest.permission.READ_MEDIA_IMAGES) else arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        if (name == "camera") return arrayOf(android.Manifest.permission.CAMERA)
+        if (name == "location") return arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (name == "notifications") {
+            return if (Build.VERSION.SDK_INT >= 33) arrayOf(android.Manifest.permission.POST_NOTIFICATIONS) else arrayOf()
+        }
+        return arrayOf()
+    }
+
+    private fun isGranted(name: String): Boolean {
+        val l = permList(name)
+        if (l.isEmpty()) return true
+        val ok = android.content.pm.PackageManager.PERMISSION_GRANTED
+        return if (name == "location") l.any { checkSelfPermission(it) == ok } else l.all { checkSelfPermission(it) == ok }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 4720) jsUi("onPermResult", "")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::webView.isInitialized) webView.evaluateJavascript("if(window.permRefresh)permRefresh()", null)
+    }
+
     override fun onPause() {
         super.onPause()
         if (::webView.isInitialized) webView.evaluateJavascript("if(window.driveFlush)driveFlush()", null)
@@ -121,6 +184,19 @@ class MainActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 4713) {
+            val pu = data?.data
+            if (resultCode == RESULT_OK && pu != null) {
+                Thread {
+                    try {
+                        jsUi("onPhotoPicked", imageToBase64(pu))
+                    } catch (e: Exception) {
+                        jsUi("onPhotoFail", "")
+                    }
+                }.start()
+            }
+            return
+        }
         if (requestCode == 4712) {
             if (resultCode == RESULT_OK && data != null) {
                 try {
@@ -152,6 +228,64 @@ class MainActivity : Activity() {
     }
 
     inner class DownloadBridge {
+        @JavascriptInterface
+        fun permStatus(): String {
+            val o = org.json.JSONObject()
+            for (n in listOf("gallery", "camera", "location", "notifications")) o.put(n, isGranted(n))
+            return o.toString()
+        }
+
+        @JavascriptInterface
+        fun askPerm(name: String) {
+            runOnUiThread {
+                val l = permList(name)
+                if (l.isEmpty() || isGranted(name)) jsUi("onPermResult", "") else requestPermissions(l, 4720)
+            }
+        }
+
+        @JavascriptInterface
+        fun openAppSettings() {
+            runOnUiThread {
+                val i = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                i.data = Uri.parse("package:" + packageName)
+                startActivity(i)
+            }
+        }
+
+        @JavascriptInterface
+        fun pickImage() {
+            runOnUiThread {
+                val i = Intent(Intent.ACTION_GET_CONTENT)
+                i.addCategory(Intent.CATEGORY_OPENABLE)
+                i.type = "image/*"
+                startActivityForResult(Intent.createChooser(i, "Choose photo"), 4713)
+            }
+        }
+
+        @JavascriptInterface
+        fun persist(text: String) {
+            try {
+                val f = File(filesDir, "db.json")
+                val t = File(filesDir, "db.tmp")
+                t.writeText(text, Charsets.UTF_8)
+                if (!t.renameTo(f)) {
+                    f.writeText(text, Charsets.UTF_8)
+                    t.delete()
+                }
+            } catch (e: Exception) {
+            }
+        }
+
+        @JavascriptInterface
+        fun loadData(): String {
+            return try {
+                val f = File(filesDir, "db.json")
+                if (f.exists()) f.readText(Charsets.UTF_8) else ""
+            } catch (e: Exception) {
+                ""
+            }
+        }
+
         @JavascriptInterface
         fun driveConnect() {
             runOnUiThread {
