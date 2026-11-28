@@ -31,6 +31,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         webView = WebView(this)
+        if (Build.VERSION.SDK_INT >= 26) webView.importantForAutofill = android.view.View.IMPORTANT_FOR_AUTOFILL_YES
         setContentView(webView)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
@@ -229,6 +230,17 @@ class MainActivity : Activity() {
 
     inner class DownloadBridge {
         @JavascriptInterface
+        fun savePassword() {
+            runOnUiThread {
+                if (Build.VERSION.SDK_INT >= 26) {
+                    try {
+                        getSystemService(android.view.autofill.AutofillManager::class.java)?.commit()
+                    } catch (e: Exception) { }
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun permStatus(): String {
             val o = org.json.JSONObject()
             for (n in listOf("gallery", "camera", "location", "notifications")) o.put(n, isGranted(n))
@@ -412,7 +424,13 @@ class MainActivity : Activity() {
 
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
+        if (!::webView.isInitialized) {
+            super.onBackPressed()
+            return
+        }
+        webView.evaluateJavascript("(window.appBack&&appBack())?'1':'0'") { r ->
+            if (r == null || !r.contains("1")) super@MainActivity.onBackPressed()
+        }
     }
 
     override fun onDestroy() {
