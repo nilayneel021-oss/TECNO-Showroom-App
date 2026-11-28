@@ -41,10 +41,39 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--pr);outline-offs
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:20;max-width:90%}
 #toast.show{opacity:1}
 .shelf{border-top:1px solid var(--bd);padding:8px 0}.shelf:first-child{border-top:0}summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;list-style:none}summary::-webkit-details-marker{display:none}summary small{display:block;color:var(--mu)}textarea{resize:vertical;font-family:ui-monospace,monospace}.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}@media(min-width:640px){.tiles{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}}.tile{position:relative;border:1px solid var(--bd);background:var(--card);border-radius:16px;padding:12px 4px 10px;text-align:center;cursor:pointer;font:inherit;color:var(--tx);display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}.tile:active{transform:scale(.96)}.tile i{font-style:normal;font-size:26px;width:50px;height:50px;display:grid;place-items:center;border-radius:15px;margin-bottom:2px}.tile b{font-size:13px;line-height:1.2}.tile small{font-size:11px;color:var(--mu)}.tile .bd{position:absolute;top:6px;right:8px;background:var(--bad);color:#fff;border-radius:99px;font-size:11px;font-weight:700;padding:1px 7px}
+:root{--bg:#f3f5fb;--card:#fff;--tx:#161a33;--mu:#6a7192;--bd:#e6e9f4;--pr:#5b4bf0;--pt:#fff;--sh:0 4px 18px rgba(40,50,110,.08);--r:20px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1020;--card:#171b31;--tx:#eef0fb;--mu:#98a0c0;--bd:#262c4d;--pr:#8b80ff;--pt:#0d1020;--sh:0 4px 18px rgba(0,0,0,.35)}}
+:root[data-theme="dark"]{--bg:#0d1020;--card:#171b31;--tx:#eef0fb;--mu:#98a0c0;--bd:#262c4d;--pr:#8b80ff;--pt:#0d1020}
+nav#nav{display:none}body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+header{display:flex;align-items:center;gap:10px;padding:10px 12px;box-shadow:var(--sh);border-bottom:0}
+.ib{width:42px;height:42px;border:0;border-radius:14px;background:var(--bg);color:var(--tx);font-size:19px;display:grid;place-items:center;position:relative;cursor:pointer;flex:none;padding:0}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}.brand>div{min-width:0}.brand b{display:block;font-size:15px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand small{display:block;color:var(--mu);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{position:absolute;top:-4px;right:-4px;background:var(--bad);color:#fff;font:700 10px system-ui;min-width:18px;height:18px;border-radius:9px;display:grid;place-items:center;padding:0 4px}
+.card{border-radius:var(--r);box-shadow:var(--sh);border-color:transparent;padding:16px}.grid .card{padding:14px}
+.btn{border-radius:14px;padding:12px 18px;box-shadow:0 2px 8px rgba(91,75,240,.25)}.btn.o,.btn.g{box-shadow:none}.btn.s{padding:8px 12px}
+input,select,textarea{border-radius:14px;padding:12px 13px}
+.hero{background:linear-gradient(135deg,#5b4bf0,#8a3ffc 60%,#c026d3);box-shadow:0 10px 28px rgba(91,75,240,.35)}
+.tile{border-radius:20px!important;box-shadow:var(--sh);border-color:transparent!important}
+.pgt{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:2px 2px 12px}.pgt h1{font-size:22px;margin:0}.pgt small{color:var(--mu)}
+#toast{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+.bnav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;gap:2px;background:var(--card);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 18px rgba(40,50,110,.1)}
+.bnav button{flex:1;border:0;background:none;color:var(--mu);font:600 11px system-ui;display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0;border-radius:14px;cursor:pointer;position:relative}.bnav button i{font-style:normal;font-size:21px}.bnav button.on{color:var(--pr);background:color-mix(in srgb,var(--pr) 13%,transparent)}
+.scrim{position:fixed;inset:0;background:rgba(10,12,30,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:30}
+.drawer{position:fixed;top:0;bottom:0;left:0;width:min(84vw,320px);background:var(--card);z-index:31;transform:translateX(-105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+body.dopen .drawer{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.25)}body.dopen .scrim{opacity:1;pointer-events:auto}
+.dh{background:linear-gradient(135deg,#5b4bf0,#8a3ffc 60%,#c026d3);color:#fff;padding:calc(22px + env(safe-area-inset-top,0px)) 18px 18px}.dh b{display:block;font-size:17px;margin-top:10px}.dh small{opacity:.85}
+.dg{padding:8px 10px 0}.dg h4{margin:10px 8px 4px;font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.08em}
+.di{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;color:var(--tx);padding:11px 12px;border-radius:14px;font:600 15px system-ui;cursor:pointer;text-align:left}.di i{font-style:normal;font-size:20px;width:26px;text-align:center}.di.on{background:color-mix(in srgb,var(--pr) 13%,transparent);color:var(--pr)}.di .tag{margin-left:auto}
+body.auth header,body.auth .bnav{display:none}body.auth{padding-bottom:0}body.auth main{padding:0;max-width:none}
+.au{min-height:100vh;display:flex;flex-direction:column;background:linear-gradient(160deg,#4338ca,#7c3aed 55%,#c026d3);padding:calc(env(safe-area-inset-top,0px) + 10px) 18px 28px;color:#fff}
+.au .lg{text-align:center;padding:34px 0 22px}.au .lg b{display:block;font-size:20px;margin-top:12px}.au .lg small{opacity:.85}
+.ac{background:var(--card);color:var(--tx);border-radius:26px;padding:22px;box-shadow:0 18px 50px rgba(20,10,80,.35);max-width:440px;width:100%;margin:0 auto}
+.ac h2{font-size:21px;margin:0 0 4px}.ac p{margin:0 0 16px;color:var(--mu);font-size:13px}.ac label{margin-bottom:12px}.ac a{color:var(--pr);font-weight:600;font-size:13px}
+.af{display:block}.fi{position:relative}.fi>span{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px}.fi input{padding-left:42px}.fi .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:18px;cursor:pointer;padding:6px}
 </style></head>
 <body>
-<header><div class="top"><div><h1><span id="shl"><svg width="36" height="36" viewBox="0 0 48 48" style="vertical-align:-10px;margin-right:6px"><rect width="48" height="48" rx="11" fill="#4F46E5"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#fff"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#4F46E5"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#4F46E5"/></svg></span><span id="shn">TECNO Official Showroom by TECH Hub</span></h1><small id="sha">Bazar Road, Beside The One Bank, Sadar Lakshmipur</small><br><small id="dt"></small></div></div><nav id="nav"></nav></header>
-<main id="app"></main><div id="toast"></div>
+<header><button class="ib" onclick="openDrawer()" aria-label="Menu">☰</button><div class="brand"><span id="shl"><svg width="40" height="40" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#5b4bf0"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#fff"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#5b4bf0"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#5b4bf0"/></svg></span><div><b id="shn">TECNO Official Showroom by TECH Hub</b><small id="sha">Bazar Road, Beside The One Bank, Sadar Lakshmipur</small></div></div><small id="dt" style="display:none"></small><button class="ib" onclick="go('notes')" aria-label="Notifications">🔔<span id="bdot"></span></button><button class="ib" id="hav" onclick="go('profile')" aria-label="Profile"></button></header>
+<nav id="nav"></nav><main id="app"></main><nav id="bnav" class="bnav"></nav><div id="scrim" class="scrim" onclick="closeDrawer()"></div><aside id="drawer" class="drawer"></aside><div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const ACCS=['BRAC Bank','Tecno Virtual Account','PalmPay','Cash On Hand'];
@@ -198,19 +227,48 @@ function lock(){cur=null;authS.mode='';draw()}
 const normLogin=s=>{s=String(s||'').trim().toLowerCase();if(s.includes('@'))return s;let d=s.replace(/[^\d]/g,'');if(d.startsWith('880')&&d.length===13)d='0'+d.slice(3);return /^\d{8,15}$/.test(d)?d:s};
 const validLogin=s=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)||/^\d{8,15}$/.test(s);
 const findUser=v=>{const k=normLogin(v),n=String(v).trim().toLowerCase();return db.users.find(u=>(u.login&&u.login===k)||u.name.toLowerCase()===n)};
+const GROUPS=[['Main',[['dash','🏠','Home'],['sell','🛒','Sell'],['hist','🧾','Sales']]],['Stock',[['phones','📱','Mobiles'],['acc','🎧','Accessories']]],['Money',[['accounts','🏦','Accounts'],['inst','💳','Installments'],['costs','💸','Costs & profit'],['promos','🏷️','Promos']]],['Team',[['chat','💬','Messages'],['notes','🔔','Notifications'],['users','👥','Users']]],['System',[['settings','⚙️','Settings'],['profile','🙍','My profile']]]];
+const PAGE={};GROUPS.forEach(g=>g[1].forEach(i=>{PAGE[i[0]]=i}));
+const openDrawer=()=>document.body.classList.add('dopen'),closeDrawer=()=>document.body.classList.remove('dopen');
+function appBack(){if(!cur)return false;if(document.body.classList.contains('dopen')){closeDrawer();return true}if(view!=='dash'){go('dash');return true}return false}
+const commitPw=()=>{try{if(window.Android&&Android.savePassword)Android.savePassword()}catch(e){}};
+function drawDrawer(bg){
+  const items=g=>g[1].filter(i=>tabOk(i[0])).map(i=>`<button class="di ${i[0]===view?'on':''}" onclick="go('${i[0]}');closeDrawer()"><i>${i[1]}</i>${i[2]}${bg[i[0]]?`<span class="tag bad">${bg[i[0]]}</span>`:''}</button>`).join('');
+  $('drawer').innerHTML=`<div class="dh">${av(cur,56)}<b>${esc(cur.name)}</b><small>${cur.role==='admin'?'Admin':'Staff'}${cur.login?' · '+esc(cur.login):''}</small></div>`+GROUPS.map(g=>{const h=items(g);return h?`<div class="dg"><h4>${g[0]}</h4>${h}</div>`:''}).join('')+`<div class="dg" style="margin-top:auto;padding-bottom:14px"><button class="di" onclick="closeDrawer();lock()"><i>🔒</i>Lock app</button></div>`;
+}
+function draw(){
+  document.body.classList.toggle('auth',!cur);closeDrawer();
+  if(!cur){dateTxt();applySet();$('app').innerHTML=authView();return}
+  if(!tabOk(view))view='dash';
+  const h=V[view](),bg={notes:unread(),chat:chatUnread()},pg=PAGE[view]||['','','Home'];
+  drawDrawer(bg);
+  const bt=[['dash','🏠','Home'],['sell','🛒','Sell'],['phones','📱','Mobiles'],['hist','🧾','Sales']].filter(i=>tabOk(i[0])),more=bg.notes+bg.chat;
+  $('bnav').innerHTML=bt.map(i=>`<button class="${i[0]===view?'on':''}" onclick="go('${i[0]}')"><i>${i[1]}</i>${i[2]}</button>`).join('')+`<button onclick="openDrawer()"><i>☰</i>More${more?`<span class="dot">${more}</span>`:''}</button>`;
+  $('bdot').innerHTML=bg.notes?`<span class="dot">${bg.notes}</span>`:'';
+  $('hav').innerHTML=av(cur,34);
+  dateTxt();applySet();
+  $('app').innerHTML=`<div class="pgt"><h1>${pg[1]} ${pg[2]}</h1>${view==='dash'?`<small>${$('dt').textContent}</small>`:''}</div>`+h;
+}
+(function(){let x0=null,y0=0;addEventListener('touchstart',e=>{const t=e.touches[0];x0=t.clientX;y0=t.clientY},{passive:true});addEventListener('touchend',e=>{if(x0===null)return;const t=e.changedTouches[0],dx=t.clientX-x0,dy=Math.abs(t.clientY-y0);if(cur&&dy<50){if(x0<24&&dx>70)openDrawer();else if(document.body.classList.contains('dopen')&&dx<-60)closeDrawer()}x0=null},{passive:true})})();
+const eyePin=id=>{const e=$(id);if(e)e.type=e.type==='password'?'text':'password'};
 function authView(){
-  const box=b=>`<div class="card" style="max-width:420px;margin:30px auto"><h2>🔐 ${b}`,f='<div class="f" style="grid-template-columns:1fr">';
-  if(authS.mode==='showrec')return box('Save your recovery code')+`</h2><div class="v" style="text-align:center;letter-spacing:4px;margin:10px 0">${authS.rc}</div><small>Write this code down and keep it safe. It is the only way to reset the admin PIN if you forget it. It is shown only once.</small><div style="margin-top:12px"><button class="btn" onclick="authS.mode='';authS.rc='';draw()">I saved it</button></div></div>`;
-  if(!db.users.length)return box('Create admin account')+`</h2>${f}<label>Owner name<input id="an1" value="Admin"></label><label>Phone number or Gmail (used to login)<input id="al1" placeholder="01XXXXXXXXX or you@gmail.com"></label><label>PIN (4–8 digits)<input id="ap1" type="password" inputmode="numeric" maxlength="8"></label><label>Confirm PIN<input id="ap2" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="setupAdmin()">Create admin</button>${canDrive()?`<button class="btn o" onclick="driveRestore()">Restore from Google Drive</button>`:''}</div>${canPick()?`<small style="display:block;margin-top:10px">Already have a backup file? <a href="#" onclick="Android.pickFile();return false">Choose file</a></small>`:''}</div>`;
-  if(authS.mode==='rec')return box('Reset admin PIN')+`</h2>${f}<label>Recovery code<input id="rc1" inputmode="numeric"></label><label>New PIN (4–8 digits)<input id="rp1" type="password" inputmode="numeric" maxlength="8"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="recoverPin()">Reset PIN</button><button class="btn o" onclick="authS.mode='';draw()">Back</button></div></div>`;
-  if(authS.mode==='signup')return box('Create account')+`</h2>${f}<label>Your name<input id="sn1"></label><label>Phone number or Gmail (used to login)<input id="sl1" placeholder="01XXXXXXXXX or you@gmail.com"></label><label>PIN (4–8 digits)<input id="sp1" type="password" inputmode="numeric" maxlength="8"></label><label>Confirm PIN<input id="sp2" type="password" inputmode="numeric" maxlength="8"></label></div><small style="display:block;margin-top:8px">The admin must approve your account before you can use the app.</small><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="createAccount()">Create account</button><button class="btn o" onclick="authS.mode='';draw()">Back to login</button></div></div>`;
-  return box('Login')+`</h2>${f}<label>Phone number, Gmail or name<input id="lu" autocomplete="username" value="${esc(authS.last||'')}" placeholder="01XXXXXXXXX or you@gmail.com"></label><label>PIN<input id="lp" type="password" inputmode="numeric" maxlength="8" onkeydown="if(event.key==='Enter')doLogin()"></label></div><div class="bar" style="margin:12px 0 0"><button class="btn" onclick="doLogin()">Login</button><button class="btn o" onclick="authS.mode='signup';draw()">Create account</button></div><div style="margin-top:10px"><a href="#" style="font-size:13px" onclick="authS.mode='rec';draw();return false">Forgot admin PIN?</a></div></div>`;
+  const logo='<svg width="64" height="64" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#fff"/><rect x="15" y="8" width="18" height="32" rx="4" fill="#5b4bf0"/><rect x="18" y="12" width="12" height="20" rx="1.5" fill="#fff"/><rect x="22.5" y="35" width="3" height="1.5" rx=".7" fill="#fff"/></svg>';
+  const L=db.set.logo?`<img src="${db.set.logo}" style="width:64px;height:64px;border-radius:16px;object-fit:cover">`:logo;
+  const wrap=(t,sub,body)=>`<div class="au"><div class="lg">${L}<b>${esc(db.set.shop)}</b><small>${esc(db.set.addr||'')}</small></div><div class="ac"><h2>${t}</h2><p>${sub}</p>${body}</div></div>`;
+  const fld=(ic,l,inp)=>`<label>${l}<div class="fi"><span>${ic}</span>${inp}</div></label>`;
+  const pin=(id,ac)=>`<input id="${id}" type="password" name="${ac==='current-password'?'password':'new-password'}" autocomplete="${ac}" inputmode="numeric" maxlength="8" placeholder="4–8 digit PIN"><button type="button" class="eye" onclick="eyePin('${id}')">👁️</button>`;
+  const bw='style="width:100%;margin-top:4px"';
+  if(authS.mode==='showrec')return wrap('Save your recovery code','Write it down and keep it safe. It is the only way to reset the admin PIN if you forget it. It is shown only once.',`<div class="v" style="text-align:center;letter-spacing:6px;font-size:30px;margin:14px 0">${authS.rc}</div><button class="btn" ${bw} onclick="authS.mode='';authS.rc='';draw()">I saved it</button>`);
+  if(!db.users.length)return wrap('Welcome 👋','Create the owner account to get started.',`<form class="af" onsubmit="event.preventDefault();setupAdmin()" autocomplete="on">${fld('🙍','Owner name','<input id="an1" value="Admin" autocomplete="name">')}${fld('📱','Phone number or Gmail (used to login)','<input id="al1" name="username" autocomplete="username" placeholder="01XXXXXXXXX or you@gmail.com">')}${fld('🔒','PIN',pin('ap1','new-password'))}${fld('🔒','Confirm PIN',pin('ap2','new-password'))}<button class="btn" type="submit" ${bw}>Create admin account</button></form>${canDrive()?`<button class="btn o" ${bw} onclick="driveRestore()">☁️ Restore from Google Drive</button>`:''}${canPick()?`<div style="text-align:center;margin-top:12px"><a href="#" onclick="Android.pickFile();return false">Restore from a backup file</a></div>`:''}`);
+  if(authS.mode==='rec')return wrap('Reset admin PIN','Enter your recovery code and choose a new PIN.',`<form class="af" onsubmit="event.preventDefault();recoverPin()">${fld('🔑','Recovery code','<input id="rc1" inputmode="numeric" placeholder="8-digit code">')}${fld('🔒','New PIN',pin('rp1','new-password'))}<button class="btn" type="submit" ${bw}>Reset PIN</button></form><div style="text-align:center;margin-top:12px"><a href="#" onclick="authS.mode='';draw();return false">← Back to login</a></div>`);
+  if(authS.mode==='signup')return wrap('Create account','The admin must approve your account before you can use the app.',`<form class="af" onsubmit="event.preventDefault();createAccount()" autocomplete="on">${fld('🙍','Your name','<input id="sn1" autocomplete="name">')}${fld('📱','Phone number or Gmail (used to login)','<input id="sl1" name="username" autocomplete="username" placeholder="01XXXXXXXXX or you@gmail.com">')}${fld('🔒','PIN',pin('sp1','new-password'))}${fld('🔒','Confirm PIN',pin('sp2','new-password'))}<button class="btn" type="submit" ${bw}>Create account</button></form><div style="text-align:center;margin-top:12px"><a href="#" onclick="authS.mode='';draw();return false">← Back to login</a></div>`);
+  return wrap('Welcome back','Login to continue',`<form class="af" onsubmit="event.preventDefault();doLogin()" autocomplete="on">${fld('📱','Phone, Gmail or name',`<input id="lu" name="username" autocomplete="username" value="${esc(authS.last||'')}" placeholder="01XXXXXXXXX or you@gmail.com">`)}${fld('🔒','PIN',pin('lp','current-password'))}<button class="btn" type="submit" ${bw}>Login</button></form><div class="bar" style="justify-content:space-between;margin:16px 0 0"><a href="#" onclick="authS.mode='rec';draw();return false">Forgot admin PIN?</a><a href="#" onclick="authS.mode='signup';draw();return false">Create account</a></div>`);
 }
 function setupAdmin(){
   const n=val('an1').trim(),l=normLogin(val('al1')),p=val('ap1');
   if(!n)return toast('Enter a name');if(!validLogin(l))return toast('Enter a valid phone number or Gmail');
   if(!okPin(p))return toast('PIN must be 4–8 digits');if(p!==val('ap2'))return toast('PINs do not match');
-  const u=mkUser(n,p,'admin');u.login=l;db.users.push(u);authS.rc=newRecCode();authS.mode='showrec';save();draw();
+  const u=mkUser(n,p,'admin');u.login=l;db.users.push(u);authS.rc=newRecCode();authS.mode='showrec';save();commitPw();draw();
 }
 function createAccount(){
   const n=val('sn1').trim(),l=normLogin(val('sl1')),p=val('sp1');
@@ -225,7 +283,7 @@ function doLogin(){
   const id=val('lu'),u=findUser(id);authS.last=id;
   if(u&&hp(val('lp'),u.salt)===u.h){
     if(u.status==='pending'){const e=$('lp');if(e)e.value='';return toast('Your account is waiting for admin approval')}
-    cur=u;view='dash';authS.tries=0;idle=Date.now();if(u.role!=='admin')notify('login',u.name+' logged in','admin');checkDue();draw();
+    cur=u;view='dash';authS.tries=0;idle=Date.now();if(u.role!=='admin')notify('login',u.name+' logged in','admin');checkDue();commitPw();draw();
   }else{
     if(++authS.tries>=5){authS.until=Date.now()+30000;authS.tries=0;notify('security','5 wrong PIN attempts for '+(u?u.name:'unknown user'),'admin');save()}
     toast('Wrong phone/Gmail or PIN');const e=$('lp');if(e)e.value='';
@@ -372,14 +430,6 @@ function clearNotes(){if(cur.role!=='admin')return;db.notes=[];save();draw()}
 function noteCard(){
   const L=db.notes.filter(vis).slice().reverse(),u=unread();
   return L.length?`<div class="card"><div class="bar" style="margin:0 0 6px"><h2 style="margin:0;flex:1">🔔 Notifications${u?` <span class="tag bad">${u} new</span>`:''}</h2><button class="btn o s" onclick="go('notes')">View all</button></div>${L.slice(0,4).map(n=>noteRow(n,cur.seen||0)).join('')}</div>`:'';
-}
-function draw(){
-  if(!cur){$('nav').innerHTML='';dateTxt();applySet();$('app').innerHTML=authView();return}
-  if(!tabOk(view))view='dash';
-  const h=V[view](),bg={notes:unread(),chat:chatUnread()};
-  $('nav').innerHTML=TABS.filter(t=>tabOk(t[0])).map(t=>`<button data-v="${t[0]}" class="${t[0]===view?'on':''}" onclick="go('${t[0]}')">${t[0]==='notes'?'🔔 Notifications':t[1]}${bg[t[0]]?` <span class="tag bad" style="margin-left:4px">${bg[t[0]]}</span>`:''}</button>`).join('')+`<button data-v="profile" class="${view==='profile'?'on':''}" onclick="go('profile')">${av(cur,22)} ${esc(cur.name)}</button><button onclick="lock()">🔒</button>`;
-  try{$('nav').querySelector('button.on').scrollIntoView({inline:'center',block:'nearest'})}catch(e){}
-  dateTxt();applySet();$('app').innerHTML=h;
 }
 
 const canPick=()=>!!(window.Android&&typeof Android.pickFile==='function');
